@@ -11,12 +11,6 @@ export async function detectRepo(): Promise<SimpleGit | null> {
         return null;
     }
 
-    const branchSummary = await git.branch();
-    const currentBranch = branchSummary.current;
-
-    console.log(`Is a Git repository: ${isRepo}`);
-    console.log(`Current branch: ${currentBranch}`);
-
     return git;
 }
 

@@ -44,10 +44,7 @@ program
             process.exit(1);
         }
 
-        console.log(`🔍 Analyzing changes against base: ${baseBranch}`);
-
-        const currentBranch = "HEAD";
-        const changedFiles = await getChangedFiles(git, baseBranch, currentBranch);
+        const changedFiles = await getChangedFiles(git, baseBranch, "HEAD");
 
         // 1. Collect AST analysis of modified files
         const analyses = new Map<string, FileAnalysis>();
@@ -66,7 +63,13 @@ program
 
         // 3. Generate and print the structured report
         const reportItems = generateReport(changedFiles, analyses, graph);
-        printConsoleReport(reportItems);
+
+        const currentBranch = (await git.revparse(["--abbrev-ref", "HEAD"])).trim();
+
+        printConsoleReport(reportItems, {
+            branch: currentBranch,
+            base: baseBranch
+        });
     })
 
 program.parse(process.argv);
