@@ -9,6 +9,3 @@ export interface ChangedFile {
     path: string
     status: FileStatus
 }
-
-
-// enums
