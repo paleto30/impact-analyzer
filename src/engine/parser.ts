@@ -50,3 +50,5 @@ export function analyzeFile(filePath: string): FileAnalysis {
         imports
     };
 }
+
+// modificacion
