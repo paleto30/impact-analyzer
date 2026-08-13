@@ -47,7 +47,6 @@ export function printConsoleReport(
     console.log(` ${colors.bold}🔍 IMPACT ANALYZER — BLAST RADIUS REPORT${colors.reset}`);
     console.log(`${colors.cyan}${colors.bold}==================================================${colors.reset}`);
 
-    // Mostrar el contexto de Git de forma limpia si existe
     if (gitContext) {
         console.log(` ${colors.bold}📂 Git Context:${colors.reset}`);
         console.log(`    ${colors.gray}├─ Branch     :${colors.reset} ${colors.bold}${gitContext.branch}${colors.reset}`);
@@ -58,25 +57,29 @@ export function printConsoleReport(
     console.log(`\n${colors.dim}ℹ️  What is this? This report evaluates the downstream impact${colors.reset}`);
     console.log(`${colors.dim}   of your changes before merging or pushing code.${colors.reset}`);
 
-    let totalDependentsCount = 0;
+    // Collect ALL unique dependent files across all changed items using a Set
+    const uniqueDependents = new Set<string>();
     for (const item of reportItems) {
-        totalDependentsCount += item.dependents.length;
+        for (const dep of item.dependents) {
+            uniqueDependents.add(dep);
+        }
     }
+    const uniqueCount = uniqueDependents.size;
 
-    // Determine risk level with colors
+    // Determine risk level based on UNIQUE affected files
     let riskLevelText = `${colors.green}🟢 LOW RISK${colors.reset}`;
     let riskDescription = "Changes are isolated or have minimal downstream exposure.";
 
-    if (totalDependentsCount > 2 && totalDependentsCount <= 5) {
+    if (uniqueCount > 2 && uniqueCount <= 5) {
         riskLevelText = `${colors.yellow}🟡 MODERATE RISK${colors.reset}`;
         riskDescription = "Changes affect a few dependent modules. Verify them before proceeding.";
-    } else if (totalDependentsCount > 5) {
+    } else if (uniqueCount > 5) {
         riskLevelText = `${colors.red}🔴 HIGH RISK${colors.reset}`;
         riskDescription = "Wide blast radius! Core contracts or heavily used files were altered.";
     }
 
     console.log(`\n 📊 Risk Assessment: ${riskLevelText}`);
-    console.log(`    ${colors.gray}${riskDescription} (${totalDependentsCount} dependent files at risk)${colors.reset}`);
+    console.log(`    ${colors.gray}${riskDescription} (${uniqueCount} unique dependent file${uniqueCount === 1 ? '' : 's'} at risk)${colors.reset}`);
 
     for (const item of reportItems) {
         let statusColor = colors.blue;
@@ -103,7 +106,6 @@ export function printConsoleReport(
             enums.forEach(e => symbols.push({ name: e, type: "enum" }));
         }
 
-        // Display exported symbols
         if (symbols.length > 0) {
             console.log(`    ${colors.gray}└─ Exported contracts/symbols modified:${colors.reset}`);
             symbols.forEach((sym, index) => {
@@ -115,7 +117,6 @@ export function printConsoleReport(
             console.log(`    ${colors.gray}└─ Exported symbols: None${colors.reset}`);
         }
 
-        // Display affected dependents
         const dependents = item.dependents;
         if (dependents.length > 0) {
             console.log(`    ${colors.yellow}└─ Potentially affected files (${dependents.length}):${colors.reset}`);
@@ -129,17 +130,16 @@ export function printConsoleReport(
         }
     }
 
-    // Actionable recommendation footer
     console.log(`\n${colors.cyan}--------------------------------------------------${colors.reset}`);
     console.log(` ${colors.bold}💡 Recommended Action:${colors.reset}`);
-    if (totalDependentsCount > 0) {
+    if (uniqueCount > 0) {
         console.log(`    Run tests covering the dependent files listed above`);
         console.log(`    to ensure no unexpected regressions were introduced.`);
     } else {
         console.log(`    This change is completely safe from downstream regressions.`);
     }
 
-    // Global summary
-    console.log(`\n ${colors.bold}📊 Summary:${colors.reset} ${reportItems.length} files analyzed | ${colors.bold}${totalDependentsCount}${colors.reset} dependent links impacted`);
+    // Global summary showing unique files
+    console.log(`\n ${colors.bold}📊 Summary:${colors.reset} ${reportItems.length} files analyzed | ${colors.bold}${uniqueCount}${colors.reset} unique dependent files impacted`);
     console.log(`${colors.cyan}${colors.bold}==================================================${colors.reset}\n`);
 }
