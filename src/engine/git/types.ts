@@ -10,3 +10,5 @@ export interface ChangedFile {
     status: FileStatus
 }
 
+
+// enums
