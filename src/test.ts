@@ -5,5 +5,7 @@ export function testImpactFunction() {
 
 
 export class Prueba {
-    
+    public runCheck() {
+        return "checking impact...";
+    }
 }
