@@ -2,7 +2,9 @@
 import { Command } from "commander";
 import { branchExists, detectBaseBranch, detectRepo, getChangedFiles } from "./engine/git/detect.js";
 import { FileStatus } from "./engine/git/types.js";
-import { analyzeFile } from "./engine/parser.js";
+import { analyzeFile, type FileAnalysis } from "./engine/parser.js";
+import { buildDependencyGraph } from "./engine/dependency.js";
+import { generateReport, printConsoleReport } from "./engine/reporter.js";
 
 const program = new Command();
 
@@ -47,36 +49,24 @@ program
         const currentBranch = "HEAD";
         const changedFiles = await getChangedFiles(git, baseBranch, currentBranch);
 
-        console.log("\nChanged files & AST Analysis:");
+        // 1. Recopilar análisis AST de los archivos modificados
+        const analyses = new Map<string, FileAnalysis>();
         for (const file of changedFiles) {
-            console.log(`\n📄 Archivo: ${file.path} [${file.status}]`);
-
-            // Si el archivo fue borrado, no podemos leer su AST del disco
-            if (file.status === FileStatus.Deleted) {
-                console.log("   (Archivo eliminado, se omite análisis estático)");
-                continue;
-            }
-
+            if (file.status === FileStatus.Deleted) continue;
             try {
                 const analysis = analyzeFile(file.path);
-                console.log("   📦 Estructura AST detectada:");
-                console.log(`      - Funciones exportadas: ${analysis.exports.functions.length > 0 ? analysis.exports.functions.join(", ") : "Ninguna"}`);
-
-                if (analysis.exports.classes.length > 0) {
-                    console.log("      - Clases exportadas:");
-                    for (const cls of analysis.exports.classes) {
-                        console.log(`        * ${cls.name} [Métodos: ${cls.methods.join(", ") || "Ninguno"}]`);
-                    }
-                }
-
-                console.log(`      - Dependencias (imports): ${analysis.imports.length > 0 ? analysis.imports.join(", ") : "Ninguna"}`);
+                analyses.set(file.path, analysis);
             } catch (error) {
-                console.log(`   ⚠️ No se pudo parsear el archivo: ${error}`);
+                // Archivo no parseable o binario, se omite silenciosamente del AST
             }
         }
 
-        console.log("Changed files:");
-        console.log(changedFiles);
+        // 2. Construir grafo de dependencias
+        const graph = buildDependencyGraph(process.cwd());
+
+        // 3. Generar y mostrar el reporte estructurado
+        const reportItems = generateReport(changedFiles, analyses, graph);
+        printConsoleReport(reportItems);
     })
 
 program.parse(process.argv);
