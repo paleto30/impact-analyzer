@@ -15,7 +15,8 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "commander": "^15.0.0"
+    "commander": "^15.0.0",
+    "ts-morph": "^28.0.0"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
