@@ -32,53 +32,67 @@ export function printConsoleReport(reportItems: ImpactReportItem[]): void {
     console.log("==================================================");
 
     let totalDependentsCount = 0;
+    for (const item of reportItems) {
+        totalDependentsCount += item.dependents.length;
+    }
+
+    // Determine risk level based on total dependents
+    let riskLevel = "🟢 LOW";
+    if (totalDependentsCount > 2 && totalDependentsCount <= 5) {
+        riskLevel = "🟡 MODERATE";
+    } else if (totalDependentsCount > 5) {
+        riskLevel = "🔴 HIGH";
+    }
+
+    console.log(`\n 📊 Risk Level: ${riskLevel} (${totalDependentsCount} dependent files at risk)`);
 
     for (const item of reportItems) {
         let statusLabel = "MODIFIED";
         if (item.file.status === FileStatus.Added) statusLabel = "ADDED";
         if (item.file.status === FileStatus.Deleted) statusLabel = "DELETED";
 
-        console.log(`\n📄 [${statusLabel}] ${item.file.path}`);
+        console.log(`\n 📄 [${statusLabel}] ${item.file.path}`);
 
-        // 1. Display analyzed symbols (if any)
+        // Collect all exported symbols into a flat vertical list with their type
+        const symbols: { name: string; type: string }[] = [];
+
         if (item.analysis) {
             const { functions, classes, interfaces, types, enums } = item.analysis.exports;
 
-            if (functions.length > 0) {
-                console.log(`   🔹 Exported functions: ${functions.join(", ")}`);
-            }
-            if (classes.length > 0) {
-                const classNames = classes.map(c => `${c.name} (${c.methods.length} methods)`).join(", ");
-                console.log(`   🔹 Exported classes: ${classNames}`);
-            }
-            if (interfaces.length > 0) {
-                console.log(`   🔹 Exported interfaces: ${interfaces.join(", ")}`);
-            }
-            if (types.length > 0) {
-                console.log(`   🔹 Exported types: ${types.join(", ")}`);
-            }
-            if (enums.length > 0) {
-                console.log(`   🔹 Exported enums: ${enums.join(", ")}`);
-            }
+            functions.forEach(f => symbols.push({ name: f, type: "function" }));
+            classes.forEach(c => symbols.push({ name: c.name, type: `class (${c.methods.length} methods)` }));
+            interfaces.forEach(i => symbols.push({ name: i, type: "interface" }));
+            types.forEach(t => symbols.push({ name: t, type: "type" }));
+            enums.forEach(e => symbols.push({ name: e, type: "enum" }));
         }
 
-        // 2. Display affected dependents hierarchically
-        const dependents = item.dependents;
-        totalDependentsCount += dependents.length;
+        // Display exported symbols vertically
+        if (symbols.length > 0) {
+            console.log(`    └─ Exported Symbols:`);
+            symbols.forEach((sym, index) => {
+                const isLast = index === symbols.length - 1;
+                const prefix = isLast ? "       └─" : "       ├─";
+                console.log(`${prefix} ${sym.name} (${sym.type})`);
+            });
+        } else {
+            console.log(`    └─ Exported Symbols: None`);
+        }
 
+        // Display affected dependents vertically
+        const dependents = item.dependents;
         if (dependents.length > 0) {
-            console.log(`   ⚠️ Potentially affected files (${dependents.length}):`);
+            console.log(`    └─ Potentially Affected Dependents (${dependents.length}):`);
             dependents.forEach((dep, index) => {
                 const isLast = index === dependents.length - 1;
-                const prefix = isLast ? "      └─" : "      ├─";
+                const prefix = isLast ? "       └─" : "       ├─";
                 console.log(`${prefix} ${dep}`);
             });
         } else {
-            console.log(`   ✅ Isolated change: no other files depend directly on this.`);
+            console.log(`    └─ Potentially Affected Dependents: None (Isolated change)`);
         }
     }
 
-    // 3. Global impact summary
+    // Global impact summary
     console.log("\n--------------------------------------------------");
     console.log(` 📊 Summary: ${reportItems.length} files analyzed | ${totalDependentsCount} dependent files impacted`);
     console.log("==================================================\n");
