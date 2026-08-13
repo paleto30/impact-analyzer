@@ -7,15 +7,15 @@ export async function detectRepo(): Promise<SimpleGit | null> {
     const isRepo = await git.checkIsRepo();
 
     if (!isRepo) {
-        console.log("Este directorio no es un repositorio Git.");
-        return null
+        console.log("This directory is not a Git repository.");
+        return null;
     }
 
-    const branchSummary = await git.branch()
-    const currentBranch = branchSummary.current
+    const branchSummary = await git.branch();
+    const currentBranch = branchSummary.current;
 
-    console.log(`Es un repositorio Git: ${isRepo}`);
-    console.log(`Branch actual: ${currentBranch}`);
+    console.log(`Is a Git repository: ${isRepo}`);
+    console.log(`Current branch: ${currentBranch}`);
 
     return git;
 }
@@ -35,12 +35,12 @@ export async function detectBaseBranch(git: SimpleGit): Promise<string | null> {
         const branchSummary = await git.branchLocal();
 
         if (branchSummary.all.includes("main"))
-            return "main"
+            return "main";
 
         if (branchSummary.all.includes("master"))
-            return "master"
+            return "master";
 
-        return null
+        return null;
     }
 }
 
@@ -66,7 +66,7 @@ export async function getChangedFiles(
             throw new Error(`Invalid git diff line: ${line}`);
         }
 
-        // Renames: "R100\told/path.ts\tnew/path.ts" -> 3 columnas
+        // Renames: "R100\told/path.ts\tnew/path.ts" -> 3 columns
         if (status.startsWith("R")) {
             const [, oldPath, newPath] = parts;
 
@@ -79,7 +79,7 @@ export async function getChangedFiles(
             continue;
         }
 
-        // Casos normales: "M\tpath.ts" -> 2 columnas
+        // Normal cases: "M\tpath.ts" -> 2 columns
         const [, path] = parts;
 
         if (!path) {
@@ -111,8 +111,8 @@ export async function getChangedFiles(
 export async function branchExists(git: SimpleGit, ref: string) {
     try {
         await git.raw(["rev-parse", "--verify", ref]);
-        return true
+        return true;
     } catch (error) {
-        return false
+        return false;
     }
 }
