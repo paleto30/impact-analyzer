@@ -1,66 +1,32 @@
-export type RiskLevel = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
-
-export interface RiskWeights {
-    callerImpact: number;
-    affectedFiles: number;
-    dependencyDepth: number;
-    testGaps: number;
-    changeSize: number;
-}
-
-export const DEFAULT_RISK_WEIGHTS: RiskWeights = {
-    callerImpact: 30,
-    affectedFiles: 20,
-    dependencyDepth: 15,
-    testGaps: 20,
-    changeSize: 15
-};
-
-export interface RiskFactors {
-    uniqueConsumers: number;
-    transitiveFiles: number;
-    maxDepth: number;
-    affectedComponents: number;
-    uncoveredComponents: number;
-    changedLines: number;
-}
-
-export interface RiskReason {
-    label: string;
-    points: number;
-}
-
-export interface RiskAssessment {
-    score: number;
-    level: RiskLevel;
-    reasons: RiskReason[];
-}
+import type { RiskWeights } from "./risk.types.js";
+import { CALLER_IMPACT_THRESHOLD, AFFECTED_FILES_THRESHOLD, DEPENDENCY_DEPTH_THRESHOLD, CHANGE_SIZE_THRESHOLD, LOW_MAX, MEDIUM_MAX, HIGH_MAX, MAX_SCORE, DEFAULT_RISK_WEIGHTS } from "./risk.constants.js";
+import type { RiskFactors, RiskReason, RiskAssessment, RiskLevel } from "./risk.types.js";
 
 export function classifyRisk(score: number): RiskLevel {
-    if (score <= 25) return "LOW";
-    if (score <= 50) return "MEDIUM";
-    if (score <= 75) return "HIGH";
+    if (score <= LOW_MAX) return "LOW";
+    if (score <= MEDIUM_MAX) return "MEDIUM";
+    if (score <= HIGH_MAX) return "HIGH";
     return "CRITICAL";
 }
 
 /**
- * Evalúa el riesgo de forma determinística (§16 del documento original).
+ * Evaluates the risk deterministically (§16 of the original document).
  *
- * Cada factor aporta puntos proporcionales a su saturación contra un umbral
- * de referencia, limitados por su peso. Los pesos son configurables y deben
- * sumar 100.
+ * Each factor contributes points proportional to its saturation against a
+ * reference threshold, capped by its weight. Weights are configurable and
+ * must add up to 100.
  *
- *   - callerImpact: consumidores directos de símbolos modificados (umbral 10)
- *   - affectedFiles: archivos alcanzados transitivamente (umbral 15)
- *   - dependencyDepth: niveles de profundidad máxima del impacto (umbral 4)
- *   - testGaps: proporción de áreas afectadas sin tests
- *   - changeSize: líneas modificadas (umbral 200)
+ *   - callerImpact: direct consumers of modified symbols (threshold 10)
+ *   - affectedFiles: transitively reached files (threshold 15)
+ *   - dependencyDepth: maximum impact depth levels (threshold 4)
+ *   - testGaps: share of affected areas without tests
+ *   - changeSize: modified lines (threshold 200)
  */
 export function evaluateRisk(
     factors: RiskFactors,
     weights: RiskWeights = DEFAULT_RISK_WEIGHTS
 ): RiskAssessment {
-    // Saneo: los pesos parciales (configuración por JSON) se rellenan con 0
+    // Sanitize: partial weights (configured via JSON) are filled with 0
     const w = {
         callerImpact: weights.callerImpact ?? 0,
         affectedFiles: weights.affectedFiles ?? 0,
@@ -72,7 +38,7 @@ export function evaluateRisk(
     const reasons: RiskReason[] = [];
 
     const callerImpact =
-        Math.min(factors.uniqueConsumers / 10, 1) * w.callerImpact;
+        Math.min(factors.uniqueConsumers / CALLER_IMPACT_THRESHOLD, 1) * w.callerImpact;
     if (factors.uniqueConsumers > 0) {
         reasons.push({
             label: `${factors.uniqueConsumers} consumer${factors.uniqueConsumers === 1 ? "" : "s"} of modified symbols`,
@@ -81,7 +47,7 @@ export function evaluateRisk(
     }
 
     const affectedFiles =
-        Math.min(factors.transitiveFiles / 15, 1) * w.affectedFiles;
+        Math.min(factors.transitiveFiles / AFFECTED_FILES_THRESHOLD, 1) * w.affectedFiles;
     if (factors.transitiveFiles > 0) {
         reasons.push({
             label: `${factors.transitiveFiles} affected files (transitive reach)`,
@@ -90,7 +56,7 @@ export function evaluateRisk(
     }
 
     const dependencyDepth =
-        Math.min(factors.maxDepth / 4, 1) * w.dependencyDepth;
+        Math.min(factors.maxDepth / DEPENDENCY_DEPTH_THRESHOLD, 1) * w.dependencyDepth;
     if (factors.maxDepth > 0) {
         reasons.push({
             label: `Impact reaches depth ${factors.maxDepth} dependency level${factors.maxDepth === 1 ? "" : "s"}`,
@@ -108,7 +74,7 @@ export function evaluateRisk(
         });
     }
 
-    const changeSize = Math.min(factors.changedLines / 200, 1) * w.changeSize;
+    const changeSize = Math.min(factors.changedLines / CHANGE_SIZE_THRESHOLD, 1) * w.changeSize;
     if (factors.changedLines > 0) {
         reasons.push({
             label: `${factors.changedLines} line${factors.changedLines === 1 ? "" : "s"} modified`,
@@ -121,7 +87,7 @@ export function evaluateRisk(
     }
 
     const score = Math.min(
-        100,
+        MAX_SCORE,
         Math.round(callerImpact + affectedFiles + dependencyDepth + testGaps + changeSize)
     );
 

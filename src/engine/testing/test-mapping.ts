@@ -1,24 +1,19 @@
-import path from "path";
+import path from "node:path";
 import { getProject } from "../project.js";
-
-export interface TestMapping {
-    testFiles: string[];
-    coverage: Map<string, string[]>;
-}
+import type { TestMapping } from "./test-mapping.interface.js";
 
 /**
- * Determina si una ruta corresponde a un archivo de test (nombre-based).
+ * Determines whether a path corresponds to a test file (name-based).
  */
 export function isTestFile(filePath: string): boolean {
     return /\.(test|spec)\.(ts|tsx|js|jsx)$/i.test(filePath);
 }
 
 /**
- * Construye el mapeo test -> código cubierto.
+ * Builds the mapping test -> covered code.
  *
- * Un archivo de test "cubre" un archivo de producción si lo importa
- * directamente (imports relativos). La cobertura transitiva no se
- * considera en el MVP.
+ * A test file "covers" a production file if it imports it directly
+ * (relative imports). Transitive coverage is not considered in the MVP.
  */
 export function buildTestMapping(projectRoot: string): TestMapping {
     const project = getProject(projectRoot);
@@ -49,46 +44,8 @@ export function buildTestMapping(projectRoot: string): TestMapping {
 }
 
 /**
- * Devuelve los archivos de test que cubren directamente un archivo.
+ * Returns the test files that directly cover a file.
  */
 export function getRelatedTests(mapping: TestMapping, filePath: string): string[] {
     return mapping.coverage.get(filePath) ?? [];
-}
-
-export interface ImpactCoverage {
-    affected: number;
-    covered: number;
-    uncovered: number;
-    uncoveredFiles: string[];
-    percentage: number;
-}
-
-/**
- * Calcula la cobertura de las áreas afectadas (§15 del documento original).
- *
- * Las áreas afectadas son los archivos de producción impactados por el
- * cambio (los archivos de test no se cuentan como áreas, son instrumentos).
- * Un área está cubierta si existe al menos un test que la importa.
- */
-export function computeImpactCoverage(
-    affectedFiles: string[],
-    mapping: TestMapping
-): ImpactCoverage {
-    const affected = affectedFiles.filter(f => !isTestFile(f));
-
-    const uncoveredFiles = affected.filter(
-        f => getRelatedTests(mapping, f).length === 0
-    );
-    const covered = affected.length - uncoveredFiles.length;
-    const percentage = affected.length === 0
-        ? 0
-        : Math.round((covered / affected.length) * 100);
-
-    return {
-        affected: affected.length,
-        covered,
-        uncovered: uncoveredFiles.length,
-        uncoveredFiles,
-        percentage
-    };
 }

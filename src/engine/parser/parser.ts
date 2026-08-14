@@ -1,19 +1,6 @@
-import path from "path";
+import path from "node:path";
 import { getProject } from "../project.js";
-
-
-
-export interface FileAnalysis {
-    filePath: string;
-    exports: {
-        functions: string[];
-        classes: { name: string; methods: string[] }[];
-        interfaces: string[];
-        types: string[];
-        enums: string[];
-    };
-    imports: string[];
-}
+import type { FileAnalysis } from "./file-analysis.interface.js";
 
 export function analyzeFile(filePath: string): FileAnalysis {
     const project = getProject(process.cwd());
@@ -62,7 +49,7 @@ export function analyzeFile(filePath: string): FileAnalysis {
 }
 
 /**
- * Extrae una lista plana de todos los nombres de símbolos exportados por el archivo.
+ * Returns a flat list of all symbol names exported by the file.
  */
 export function getExportedSymbolNames(analysis: FileAnalysis): string[] {
     const names: string[] = [];

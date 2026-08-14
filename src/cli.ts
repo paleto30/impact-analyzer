@@ -1,13 +1,23 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { branchExists, detectBaseBranch, detectRepo, getChangedFiles, getModifiedLines } from "./engine/git/detect.js";
-import { FileStatus } from "./engine/git/types.js";
-import { analyzeFile, getExportedSymbolNames, type FileAnalysis } from "./engine/parser/parser.js";
+import { FileStatus } from "./engine/git/file-status.js";
+import { analyzeFile, getExportedSymbolNames } from "./engine/parser/parser.js";
+import type { FileAnalysis } from "./engine/parser/file-analysis.interface.js";
 import { buildDependencyGraph } from "./engine/graph/dependency.js";
-import { generateReport, printConsoleReport } from "./engine/reporter/reporter.js";
+import { computeAssessment, generateReport } from "./engine/assessment.js";
+import { printConsoleReport } from "./engine/reporter/reporter.js";
 import { buildTestMapping } from "./engine/testing/test-mapping.js";
-import type { RiskWeights } from "./engine/risk/risk.js";
-import { SymbolAnalyzer, type SymbolImpact } from "./engine/analyzer/symbol-analyzer.js";
+import type { RiskWeights } from "./engine/risk/risk.types.js";
+import { SymbolAnalyzer } from "./engine/analyzer/symbol-analyzer.js";
+import type { SymbolImpact } from "./engine/analyzer/symbol-impact.interface.js";
+
+interface ChangedFileAnalysis {
+    analysis: FileAnalysis;
+    modifiedLines: Set<number>;
+    modifiedSymbols: Set<string>;
+    symbolImpacts: SymbolImpact[];
+}
 
 const program = new Command();
 
@@ -26,10 +36,10 @@ program
         const git = await detectRepo();
         if (!git) return;
 
-        // 1. Determine candidate base branch
+        // 1. Determine the candidate base branch
         let baseBranch = options.base;
 
-        // If the user didn't pass --base, attempt auto-detection
+        // Auto-detect if the user didn't pass --base
         if (!baseBranch) {
             baseBranch = await detectBaseBranch(git);
         }
@@ -50,16 +60,14 @@ program
 
         const changedFiles = await getChangedFiles(git, baseBranch, "HEAD");
 
-        // 3. Inicializar el Analizador de Símbolos con Indexación Única (Alto Rendimiento)
+        // 3. Symbol analyzer with a single shared AST index (high performance)
         const symbolAnalyzer = new SymbolAnalyzer(process.cwd());
 
-        // 4. Collect AST analysis & Symbol Impacts of modified files
+        // 4. Analyze each changed file: exported symbols, modified lines,
+        //    physically modified symbols, and their real consumers
         const analyses = new Map<string, FileAnalysis>();
-        const allSymbolImpacts: SymbolImpact[] = [];
-
-        // Mapas temporales para almacenar las líneas y símbolos modificados por cada archivo
-        const modifiedLinesMap = new Map<string, Set<number>>();
-        const modifiedSymbolNamesMap = new Map<string, Set<string>>();
+        const changedFileAnalyses = new Map<string, ChangedFileAnalysis>();
+        let skippedFiles = 0;
 
         for (const file of changedFiles) {
             if (file.status === FileStatus.Deleted) continue;
@@ -68,54 +76,53 @@ program
                 analyses.set(file.path, analysis);
 
                 const exportedSymbols = getExportedSymbolNames(analysis);
-                if (exportedSymbols.length > 0) {
-                    const modifiedLines = await getModifiedLines(git, baseBranch, "HEAD", file.path);
-                    modifiedLinesMap.set(file.path, modifiedLines);
+                if (exportedSymbols.length === 0) continue;
 
-                    // 1. Obtenemos qué símbolos se tocaron físicamente en este archivo
-                    const modifiedSymbols = symbolAnalyzer.getModifiedSymbolNames(
+                const modifiedLines = await getModifiedLines(git, baseBranch, "HEAD", file.path);
+
+                // 4.1 Which symbols were physically touched in this file
+                const modifiedSymbols = symbolAnalyzer.getModifiedSymbolNames(
+                    file.path,
+                    exportedSymbols,
+                    modifiedLines
+                );
+
+                // 4.2 KEY FILTER: only analyze the impact if at least one symbol changed
+                const symbolImpacts = modifiedSymbols.size > 0
+                    ? symbolAnalyzer.analyzeSymbolImpact(
                         file.path,
-                        exportedSymbols,
+                        Array.from(modifiedSymbols),
                         modifiedLines
-                    );
-                    modifiedSymbolNamesMap.set(file.path, modifiedSymbols);
+                    )
+                    : [];
 
-                    // 2. ⚡ FILTRO CLAVE: Solo analizamos el impacto si AL MENOS UN símbolo cambió
-                    if (modifiedSymbols.size > 0) {
-                        // Pasamos solo los símbolos que realmente sufrieron cambios al analizador
-                        const impacts = symbolAnalyzer.analyzeSymbolImpact(
-                            file.path,
-                            Array.from(modifiedSymbols),
-                            modifiedLines
-                        );
-                        allSymbolImpacts.push(...impacts);
-                    }
-                }
+                changedFileAnalyses.set(file.path, {
+                    analysis,
+                    modifiedLines,
+                    modifiedSymbols,
+                    symbolImpacts
+                });
             } catch (error) {
-                // Non-parseable or binary file, skip silently
+                // Non-parseable or binary file: skip silently
+                skippedFiles++;
             }
         }
 
-        // 5. Build dependency graph
+        // 5. Build the dependency graph and the test mapping
         const graph = buildDependencyGraph(process.cwd());
-
-        // 5b. Build test mapping (Fase 5)
         const testMapping = buildTestMapping(process.cwd());
 
-        // 6. Generate and print the structured report
+        // 6. Build the report items and link the per-file analysis data
         const reportItems = generateReport(changedFiles, analyses, graph);
 
-        // Vincular los impactos y los símbolos realmente modificados por rango de líneas a cada ítem del reporte
         reportItems.forEach(item => {
-            item.symbolImpacts = allSymbolImpacts.filter(si => si.filePath === item.file.path);
-
-            item.modifiedSymbolNames = modifiedSymbolNamesMap.get(item.file.path) || new Set<string>();
-
+            const changed = changedFileAnalyses.get(item.file.path);
+            item.symbolImpacts = changed?.symbolImpacts ?? [];
+            item.modifiedSymbolNames = changed?.modifiedSymbols ?? new Set<string>();
             item.relatedTests = testMapping.coverage.get(item.file.path) ?? [];
         });
 
-        const currentBranch = (await git.revparse(["--abbrev-ref", "HEAD"])).trim();
-
+        // 7. Compute the assessment (risk score, impact coverage, counts)
         let riskWeights: RiskWeights | undefined;
         if (options.riskWeights) {
             try {
@@ -126,8 +133,13 @@ program
             }
         }
 
-        const changedLines = Array.from(modifiedLinesMap.values())
-            .reduce((acc, lines) => acc + lines.size, 0);
+        const changedLines = Array.from(changedFileAnalyses.values())
+            .reduce((acc, file) => acc + file.modifiedLines.size, 0);
+
+        const assessment = computeAssessment(reportItems, testMapping, changedLines, riskWeights);
+
+        // 8. Print the report
+        const currentBranch = (await git.revparse(["--abbrev-ref", "HEAD"])).trim();
 
         printConsoleReport(reportItems, {
             gitContext: {
@@ -135,8 +147,8 @@ program
                 base: baseBranch
             },
             testMapping,
-            ...(riskWeights ? { riskWeights } : {}),
-            changedLines
+            assessment,
+            ...(skippedFiles > 0 ? { skippedFiles } : {})
         });
     });
 

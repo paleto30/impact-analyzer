@@ -1,7 +1,7 @@
-import path from "path";
+import path from "node:path";
 import { type Project, type SourceFile, type Node, InterfaceDeclaration, TypeAliasDeclaration, ClassDeclaration, FunctionDeclaration, EnumDeclaration } from "ts-morph";
 import { getProject } from "../project.js";
-
+import type { SymbolImpact } from "./symbol-impact.interface.js";
 
 type ExportableNode =
     | InterfaceDeclaration
@@ -9,16 +9,6 @@ type ExportableNode =
     | ClassDeclaration
     | FunctionDeclaration
     | EnumDeclaration;
-
-export interface SymbolImpact {
-    symbolName: string;
-    filePath: string;
-    consumers: {
-        filePath: string;
-        line: number;
-        snippet: string;
-    }[];
-}
 
 function rangeIntersectsModifiedLines(
     startLine: number,
@@ -31,23 +21,20 @@ function rangeIntersectsModifiedLines(
     return false;
 }
 
-
 export class SymbolAnalyzer {
 
-    // 
     private project: Project;
     private projectRoot: string;
 
     constructor(projectRoot: string) {
         this.projectRoot = projectRoot;
-
         this.project = getProject(projectRoot);
     }
 
     /**
-     * Resuelve el nodo AST real de un símbolo exportado por nombre.
-     * Compartido entre analyzeSymbolImpact y getModifiedSymbolNames
-     * para no duplicar la cadena de lookup.
+     * Resolves the real AST node of an exported symbol by name.
+     * Shared between analyzeSymbolImpact and getModifiedSymbolNames
+     * to avoid duplicating the lookup chain.
      */
     private getExportNode(sourceFile: SourceFile, symbolName: string): ExportableNode | undefined {
         return (
@@ -60,10 +47,10 @@ export class SymbolAnalyzer {
     }
 
     /**
-     * Determina, de una lista de símbolos exportados, cuáles tienen su
-     * rango de líneas físicamente superpuesto con las líneas modificadas
-     * por Git. No busca referencias (operación cara) — solo intersección
-     * de rangos, para uso en el reporte (qué marcar como "modificado").
+     * Determines, from a list of exported symbols, which ones have their line
+     * range physically overlapping the lines modified by Git. It does not
+     * search references (an expensive operation) — only range intersection,
+     * for reporting purposes (what to mark as "modified").
      */
     public getModifiedSymbolNames(
         relativePath: string,

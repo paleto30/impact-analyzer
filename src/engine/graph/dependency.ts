@@ -1,61 +1,44 @@
-import path from "path";
+import path from "node:path";
 import { getProject } from "../project.js";
-
-export interface DependencyGraph {
-    // Relación: "archivo importado" -> "archivos que lo importan" (who depends on this)
-    dependents: { [targetFile: string]: string[] };
-    // Relación: "archivo" -> "archivos que importa" (what does this affect directly)
-    imports: { [sourceFile: string]: string[] };
-}
-
-export interface TransitiveImpact {
-    files: string[];
-    maxDepth: number;
-    depthMap: Map<string, number>;
-}
+import type { DependencyGraph } from "./dependency-graph.interface.js";
+import type { TransitiveImpact } from "./transitive-impact.interface.js";
 
 export function buildDependencyGraph(projectRoot: string): DependencyGraph {
     const project = getProject(projectRoot);
 
-    // Añadimos todos los archivos fuente del proyecto (idempotente: los ya
-    // cargados por tsconfig se reutilizan, no se vuelven a parsear)
+    // Add all project source files (idempotent: files already loaded via the
+    // tsconfig are reused, not re-parsed)
     project.addSourceFilesAtPaths(`${projectRoot}/src/**/*.ts`);
 
-    const dependents: { [targetFile: string]: string[] } = {};
-    const imports: { [sourceFile: string]: string[] } = {};
+    const dependents = new Map<string, string[]>();
+    const imports = new Map<string, string[]>();
 
     for (const sourceFile of project.getSourceFiles()) {
         const filePath = path.relative(projectRoot, sourceFile.getFilePath());
 
-        const importedByThis = imports[filePath] ?? [];
-        imports[filePath] = importedByThis;
+        const importedByThis = imports.get(filePath) ?? [];
+        imports.set(filePath, importedByThis);
 
-        // Revisar cada import que hace este archivo
+        // Review each import this file makes
         for (const importDecl of sourceFile.getImportDeclarations()) {
             const moduleSpecifier = importDecl.getModuleSpecifierValue();
 
-            // Solo nos interesan los imports relativos (ej: "./parser.js" o "../git/detect.js")
+            // Only relative imports matter (e.g. "./parser.js" or "../git/detect.js")
             if (!moduleSpecifier.startsWith(".")) continue;
 
-            // Resolver la ruta del archivo importado
+            // Resolve the path of the imported file
             const importedSourceFile = importDecl.getModuleSpecifierSourceFile();
             if (!importedSourceFile) continue;
 
             const importedPath = path.relative(projectRoot, importedSourceFile.getFilePath());
 
-            if (!dependents[importedPath]) {
-                dependents[importedPath] = [];
-            }
+            // Add the current file to the dependents of the imported file
+            const dependentsList = dependents.get(importedPath) ?? [];
+            if (!dependentsList.includes(filePath)) dependentsList.push(filePath);
+            dependents.set(importedPath, dependentsList);
 
-            // Añadir el archivo actual a la lista de dependientes del importado
-            if (!dependents[importedPath].includes(filePath)) {
-                dependents[importedPath].push(filePath);
-            }
-
-            // Añadir el importado a la lista de imports del archivo actual
-            if (!importedByThis.includes(importedPath)) {
-                importedByThis.push(importedPath);
-            }
+            // Add the imported file to the imports of the current file
+            if (!importedByThis.includes(importedPath)) importedByThis.push(importedPath);
         }
     }
 
@@ -63,14 +46,14 @@ export function buildDependencyGraph(projectRoot: string): DependencyGraph {
 }
 
 /**
- * Recorre transitivamente el grafo de dependientes (BFS) desde un archivo
- * fuente para responder "¿qué afecta A?" (§13 del documento original).
+ * Traverses the transitive dependents graph (BFS) from a source file to
+ * answer "what does A affect?" (§13 of the original document).
  *
- * - files: todos los dependientes directos e indirectos (sin el archivo origen)
- * - depthMap: distancia en saltos de import desde el origen
- * - maxDepth: profundidad máxima alcanzada
+ * - files: all direct and indirect dependents (without the source file)
+ * - depthMap: distance in import hops from the source
+ * - maxDepth: maximum depth reached
  *
- * El set de visitados protege contra dependencias circulares.
+ * The visited set protects against circular dependencies.
  */
 export function findTransitiveDependents(
     graph: DependencyGraph,
@@ -88,7 +71,7 @@ export function findTransitiveDependents(
         for (const file of queue) {
             const parentDepth = depthMap.get(file) ?? 0;
 
-            for (const dependent of graph.dependents[file] ?? []) {
+            for (const dependent of graph.dependents.get(file) ?? []) {
                 if (visited.has(dependent)) continue;
 
                 visited.add(dependent);

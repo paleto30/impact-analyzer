@@ -1,7 +1,8 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
-import { buildTestMapping, computeImpactCoverage, getRelatedTests, isTestFile } from "../src/engine/testing/test-mapping.js";
+import { buildTestMapping, getRelatedTests, isTestFile } from "../src/engine/testing/test-mapping.js";
+import { computeImpactCoverage } from "../src/engine/testing/impact-coverage.js";
 
 const COVERAGE = path.resolve("test/fixtures/test-coverage");
 

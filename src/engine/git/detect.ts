@@ -1,5 +1,6 @@
-import { simpleGit, type SimpleGit } from "simple-git"
-import { FileStatus, type ChangedFile } from "./types.js";
+import { simpleGit, type SimpleGit } from "simple-git";
+import { FileStatus } from "./file-status.js";
+import type { ChangedFile } from "./changed-file.interface.js";
 
 export async function detectRepo(): Promise<SimpleGit | null> {
     const git: SimpleGit = simpleGit(process.cwd());
@@ -13,7 +14,6 @@ export async function detectRepo(): Promise<SimpleGit | null> {
 
     return git;
 }
-
 
 export async function detectBaseBranch(git: SimpleGit): Promise<string | null> {
     try {
@@ -101,7 +101,6 @@ export async function getChangedFiles(
     return changedFiles;
 }
 
-
 export async function branchExists(git: SimpleGit, ref: string) {
     try {
         await git.raw(["rev-parse", "--verify", ref]);
@@ -112,36 +111,36 @@ export async function branchExists(git: SimpleGit, ref: string) {
 }
 
 /**
- * Obtiene un conjunto de números de línea que fueron modificados en un archivo respecto a la rama base.
+ * Returns the set of line numbers modified in a file relative to the base branch.
  */
 export async function getModifiedLines(git: SimpleGit, base: string, head: string, filePath: string): Promise<Set<number>> {
     const modifiedLines = new Set<number>();
     try {
-        // Obtenemos el diff unificado para el archivo específico
+        // Get the unified diff for the specific file
         const diff = await git.diff([base, head, "--", filePath]);
         const lines = diff.split("\n");
 
-        let currentNewLine = 0;
+        let currentLine = 0;
 
         for (const line of lines) {
             if (line.startsWith("@@")) {
-                // Formato de chunk de git diff: @@ -l,s +l,s @@
+                // Git diff chunk format: @@ -l,s +l,s @@
                 const match = line.match(/\+([0-9]+)(?:,([0-9]+))?/);
                 if (match && match[1]) {
-                    currentNewLine = parseInt(match[1], 10);
+                    currentLine = parseInt(match[1], 10);
                 }
             } else if (line.startsWith("+") && !line.startsWith("+++")) {
-                // Es una línea añadida o modificada
-                modifiedLines.add(currentNewLine);
-                currentNewLine++;
+                // Added or modified line
+                modifiedLines.add(currentLine);
+                currentLine++;
             } else if (line.startsWith(" ") && !line.startsWith("---")) {
-                // Línea de contexto (sin cambios)
-                currentNewLine++;
+                // Context line (no change)
+                currentLine++;
             }
-            // Las líneas que empiezan con '-' no avanzan el contador del archivo nuevo
+            // Lines starting with '-' do not advance the new-file counter
         }
     } catch (error) {
-        // Si falla el diff, devolvemos conjunto vacío por seguridad
+        // If the diff fails, return an empty set by safety
     }
     return modifiedLines;
 }

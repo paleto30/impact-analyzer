@@ -1,15 +1,15 @@
-import path from "path";
+import path from "node:path";
 import { Project } from "ts-morph";
 
 let sharedProject: Project | undefined;
 let sharedProjectRoot: string | undefined;
 
 /**
- * Devuelve una única instancia de Project por raíz de proyecto.
+ * Returns a single Project instance per project root.
  *
- * parser, dependency y symbol-analyzer comparten el mismo árbol AST y la
- * misma configuración de tsconfig (paths aliases, target/module), evitando
- * parsear los mismos archivos varias veces con proyectos distintos.
+ * parser, dependency and symbol-analyzer share the same AST tree and the same
+ * tsconfig settings (path aliases, target/module), avoiding parsing the same
+ * files multiple times with different projects.
  */
 export function getProject(projectRoot: string): Project {
     if (!sharedProject || sharedProjectRoot !== projectRoot) {

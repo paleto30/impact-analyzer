@@ -10,21 +10,21 @@ const CIRCULAR = path.resolve("test/fixtures/circular-dependencies");
 describe("dependency graph", () => {
     it("builds the A -> B -> C chain", () => {
         const graph = buildDependencyGraph(SIMPLE);
-        assert.ok(graph.dependents["B.ts"]?.includes("A.ts"), "A.ts imports B.ts");
-        assert.ok(graph.dependents["C.ts"]?.includes("B.ts"), "B.ts imports C.ts");
-        assert.equal(graph.dependents["A.ts"], undefined, "A.ts should have no dependents");
+        assert.ok(graph.dependents.get("B.ts")?.includes("A.ts"), "A.ts imports B.ts");
+        assert.ok(graph.dependents.get("C.ts")?.includes("B.ts"), "B.ts imports C.ts");
+        assert.equal(graph.dependents.get("A.ts"), undefined, "A.ts should have no dependents");
     });
 
     it("builds the forward imports index", () => {
         const graph = buildDependencyGraph(SIMPLE);
-        assert.deepEqual(graph.imports["A.ts"], ["B.ts"]);
-        assert.deepEqual(graph.imports["B.ts"], ["C.ts"]);
-        assert.deepEqual(graph.imports["C.ts"], []);
+        assert.deepEqual(graph.imports.get("A.ts"), ["B.ts"]);
+        assert.deepEqual(graph.imports.get("B.ts"), ["C.ts"]);
+        assert.deepEqual(graph.imports.get("C.ts"), []);
     });
 
     it("detects consumers of PaymentService in the test-coverage fixture", () => {
         const graph = buildDependencyGraph(COVERAGE);
-        const consumers = graph.dependents["payment/PaymentService.ts"];
+        const consumers = graph.dependents.get("payment/PaymentService.ts");
         assert.ok(consumers?.includes("payment/CheckoutService.ts"));
         assert.ok(consumers?.includes("payment/InvoiceService.ts"));
         assert.ok(consumers?.includes("payment/PaymentService.test.ts"));
