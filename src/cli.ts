@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { branchExists, detectBaseBranch, detectRepo, getChangedFiles } from "./engine/git/detect.js";
+import { branchExists, detectBaseBranch, detectRepo, getChangedFiles, getModifiedLines } from "./engine/git/detect.js";
 import { FileStatus } from "./engine/git/types.js";
 import { analyzeFile, getExportedSymbolNames, type FileAnalysis } from "./engine/parser.js";
 import { buildDependencyGraph } from "./engine/dependency.js";
@@ -60,10 +60,10 @@ program
                 const analysis = analyzeFile(file.path);
                 analyses.set(file.path, analysis);
 
-                // Extraer los símbolos exportados y buscar sus consumidores exactos en el proyecto
                 const exportedSymbols = getExportedSymbolNames(analysis);
                 if (exportedSymbols.length > 0) {
-                    const impacts = symbolAnalyzer.analyzeSymbolImpact(file.path, exportedSymbols);
+                    const modifiedLines = await getModifiedLines(git, baseBranch, "HEAD", file.path);
+                    const impacts = symbolAnalyzer.analyzeSymbolImpact(file.path, exportedSymbols, modifiedLines);
                     allSymbolImpacts.push(...impacts);
                 }
             } catch (error) {

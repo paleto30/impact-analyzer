@@ -20,7 +20,8 @@ export interface ImpactReportItem {
     file: ChangedFile;
     analysis?: FileAnalysis | undefined;
     dependents: string[];
-    symbolImpacts?: SymbolImpact[]; // <-- Nuevo campo para el impacto a nivel de símbolos
+    symbolImpacts?: SymbolImpact[];
+    modifiedSymbolNames?: Set<string>; // <-- nuevo: qué símbolos realmente cambiaron
 }
 
 export function generateReport(
@@ -109,19 +110,24 @@ export function printConsoleReport(
         }
 
         if (symbols.length > 0) {
-            console.log(`    ${colors.gray}└─ Exported contracts/symbols modified:${colors.reset}`);
+            console.log(`    ${colors.gray}└─ Exported symbols in this file:${colors.reset}`);
             symbols.forEach((sym, index) => {
                 const isLast = index === symbols.length - 1;
                 const prefix = isLast ? "       └─" : "       ├─";
-                console.log(`    ${colors.gray}${prefix}${colors.reset} ${colors.bold}${sym.name}${colors.reset} ${colors.dim}(${sym.type})${colors.reset}`);
+
+                const wasModified = item.modifiedSymbolNames?.has(sym.name) ?? false;
+                const marker = wasModified ? `${colors.yellow}✏️  ` : "   ";
+                const suffix = wasModified ? ` ${colors.dim}(modified)${colors.reset}` : "";
+
+                console.log(`    ${colors.gray}${prefix}${colors.reset} ${marker}${colors.bold}${sym.name}${colors.reset} ${colors.dim}(${sym.type})${colors.reset}${suffix}`);
             });
         } else {
             console.log(`    ${colors.gray}└─ Exported symbols: None${colors.reset}`);
         }
 
-        // --- SECCIÓN ULTRA-LIMPIA Y VERTICALMENTE LEGIBLE ---
+        // --- SECCIÓN ULTRA-CLARA Y DOCUMENTADA PARA CUALQUIER USUARIO ---
         if (item.symbolImpacts && item.symbolImpacts.length > 0) {
-            console.log(`    ${colors.cyan}└─ Symbol-level consumption (Exact usages):${colors.reset}`);
+            console.log(`    ${colors.cyan}└─ Detailed Downstream Usages (Where these changes are used):${colors.reset}`);
 
             const consumersByFile = new Map<string, { symbol: string; line: number; snippet: string }[]>();
 
@@ -143,27 +149,26 @@ export function printConsoleReport(
 
             const entries = Array.from(consumersByFile.entries());
 
-            // Si después de filtrar imports no queda nada que mostrar, saltamos esta parte
             if (entries.length > 0) {
                 entries.forEach(([consumerFile, usages], fileIndex) => {
                     const isLastFile = fileIndex === entries.length - 1;
                     const filePrefix = isLastFile ? "       └─" : "       ├─";
 
-                    console.log(`    ${colors.gray}${filePrefix}${colors.reset} 📂 ${colors.cyan}${consumerFile}${colors.reset}`);
+                    console.log(`    ${colors.gray}${filePrefix}${colors.reset} 📂 Affected File: ${colors.cyan}${colors.bold}${consumerFile}${colors.reset}`);
 
                     usages.forEach((usage, usageIndex) => {
                         const isLastUsage = usageIndex === usages.length - 1;
                         const usagePrefix = isLastUsage ? "          └─" : "          ├─";
 
-                        console.log(`    ${colors.gray}${usagePrefix}${colors.reset} 🔸 Line ${colors.bold}${usage.line}${colors.reset} (${colors.dim}${usage.symbol}${colors.reset})`);
-                        console.log(`             ${colors.gray}💡 "${colors.reset}${usage.snippet.trim()}${colors.gray}"${colors.reset}`);
+                        console.log(`    ${colors.gray}${usagePrefix}${colors.reset} 🔸 Target Symbol: ${colors.bold}${usage.symbol}${colors.reset} (Line ${colors.cyan}${usage.line}${colors.reset})`);
+                        console.log(`             ${colors.gray}💻 Code snippet : "${colors.reset}${colors.blue}${usage.snippet.trim()}${colors.reset}${colors.gray}"${colors.reset}`);
                     });
                 });
             } else {
-                console.log(`    ${colors.gray}       └─ (Only import references found)${colors.reset}`);
+                console.log(`    ${colors.gray}       └─ (No active execution usages found outside of imports)${colors.reset}`);
             }
         }
-        // ----------------------------------------------------
+        // -----------------------------------------------------------------
 
         const dependents = item.dependents;
         if (dependents.length > 0) {

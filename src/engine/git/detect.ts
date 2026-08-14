@@ -110,3 +110,38 @@ export async function branchExists(git: SimpleGit, ref: string) {
         return false;
     }
 }
+
+/**
+ * Obtiene un conjunto de números de línea que fueron modificados en un archivo respecto a la rama base.
+ */
+export async function getModifiedLines(git: SimpleGit, base: string, head: string, filePath: string): Promise<Set<number>> {
+    const modifiedLines = new Set<number>();
+    try {
+        // Obtenemos el diff unificado para el archivo específico
+        const diff = await git.diff([base, head, "--", filePath]);
+        const lines = diff.split("\n");
+
+        let currentNewLine = 0;
+
+        for (const line of lines) {
+            if (line.startsWith("@@")) {
+                // Formato de chunk de git diff: @@ -l,s +l,s @@
+                const match = line.match(/\+([0-9]+)(?:,([0-9]+))?/);
+                if (match && match[1]) {
+                    currentNewLine = parseInt(match[1], 10);
+                }
+            } else if (line.startsWith("+") && !line.startsWith("+++")) {
+                // Es una línea añadida o modificada
+                modifiedLines.add(currentNewLine);
+                currentNewLine++;
+            } else if (line.startsWith(" ") && !line.startsWith("---")) {
+                // Línea de contexto (sin cambios)
+                currentNewLine++;
+            }
+            // Las líneas que empiezan con '-' no avanzan el contador del archivo nuevo
+        }
+    } catch (error) {
+        // Si falla el diff, devolvemos conjunto vacío por seguridad
+    }
+    return modifiedLines;
+}
