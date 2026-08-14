@@ -1,5 +1,6 @@
 import path from "path";
-import { Project, type SourceFile, type Node, InterfaceDeclaration, TypeAliasDeclaration, ClassDeclaration, FunctionDeclaration, EnumDeclaration } from "ts-morph";
+import { type Project, type SourceFile, type Node, InterfaceDeclaration, TypeAliasDeclaration, ClassDeclaration, FunctionDeclaration, EnumDeclaration } from "ts-morph";
+import { getProject } from "../project.js";
 
 
 type ExportableNode =
@@ -40,10 +41,7 @@ export class SymbolAnalyzer {
     constructor(projectRoot: string) {
         this.projectRoot = projectRoot;
 
-        this.project = new Project({
-            tsConfigFilePath: path.join(projectRoot, 'tsconfig.json'),
-            skipAddingFilesFromTsConfig: false
-        });
+        this.project = getProject(projectRoot);
     }
 
     /**

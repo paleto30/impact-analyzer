@@ -8,17 +8,26 @@
   },
   "scripts": {
     "build": "tsc",
-    "dev": "tsx src/cli.ts"
+    "dev": "tsx src/cli.ts",
+    "test": "tsx --test test/*.test.ts"
   },
   "files": [
     "dist"
   ],
-  "keywords": [],
+  "keywords": [
+    "impact",
+    "analysis",
+    "blast-radius",
+    "git",
+    "ast",
+    "risk"
+  ],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "Analyze the impact of your code changes: blast radius, downstream consumers, test coverage and risk score before merging.",
   "dependencies": {
     "commander": "^15.0.0",
+    "simple-git": "^3.36.0",
     "ts-morph": "^28.0.0"
   },
   "devDependencies": {

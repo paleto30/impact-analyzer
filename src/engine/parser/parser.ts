@@ -1,4 +1,5 @@
-import { Project } from "ts-morph";
+import path from "path";
+import { getProject } from "../project.js";
 
 
 
@@ -15,8 +16,11 @@ export interface FileAnalysis {
 }
 
 export function analyzeFile(filePath: string): FileAnalysis {
-    const project = new Project();
-    const sourceFile = project.addSourceFileAtPath(filePath);
+    const project = getProject(process.cwd());
+    const absolutePath = path.isAbsolute(filePath)
+        ? filePath
+        : path.resolve(process.cwd(), filePath);
+    const sourceFile = project.addSourceFileAtPath(absolutePath);
 
     // 1. Functions
     const functions = sourceFile.getFunctions()

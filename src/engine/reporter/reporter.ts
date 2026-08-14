@@ -1,7 +1,10 @@
-import type { DependencyGraph } from "./dependency.js";
-import { FileStatus, type ChangedFile } from "./git/types.js";
-import type { FileAnalysis } from "./parser.js";
-import type { SymbolImpact } from "./symbol-analyzer.js";
+import type { DependencyGraph, TransitiveImpact } from "../graph/dependency.js";
+import { FileStatus, type ChangedFile } from "../git/types.js";
+import type { FileAnalysis } from "../parser/parser.js";
+import type { SymbolImpact } from "../analyzer/symbol-analyzer.js";
+import { computeImpactCoverage, isTestFile, type TestMapping } from "../testing/test-mapping.js";
+import { findTransitiveDependents } from "../graph/dependency.js";
+import { evaluateRisk, type RiskLevel, type RiskWeights } from "../risk/risk.js";
 
 // ANSI color codes for zero-dependency terminal styling
 const colors = {
@@ -16,15 +19,15 @@ const colors = {
     gray: "\x1b[90m"
 };
 
-
 export interface ImpactReportItem {
     file: ChangedFile;
     analysis?: FileAnalysis | undefined;
     dependents: string[];
+    transitiveImpact?: TransitiveImpact;
     symbolImpacts?: SymbolImpact[];
-    modifiedSymbolNames?: Set<string>; // <-- nuevo: qué símbolos realmente cambiaron
+    modifiedSymbolNames?: Set<string>;
+    relatedTests?: string[];
 }
-
 
 export function generateReport(
     changedFiles: ChangedFile[],
@@ -34,20 +37,31 @@ export function generateReport(
     const reportItems: ImpactReportItem[] = [];
 
     for (const file of changedFiles) {
+        const dependents = graph.dependents[file.path] || [];
+
         reportItems.push({
             file,
             analysis: analyses.get(file.path),
-            dependents: graph[file.path] || []
+            dependents,
+            transitiveImpact: findTransitiveDependents(graph, file.path)
         });
     }
-    // lo reconoce como modificado
+
     return reportItems;
+}
+
+export interface ReportOptions {
+    gitContext?: { branch: string; base: string };
+    testMapping?: TestMapping;
+    riskWeights?: RiskWeights;
+    changedLines?: number;
 }
 
 export function printConsoleReport(
     reportItems: ImpactReportItem[],
-    gitContext?: { branch: string; base: string }
+    options?: ReportOptions
 ): void {
+    const { gitContext, testMapping, riskWeights, changedLines = 0 } = options ?? {};
     // ------------------------------------------------------------
     // REPORT HEADER
     // ------------------------------------------------------------
@@ -96,46 +110,114 @@ export function printConsoleReport(
     );
 
     // ------------------------------------------------------------
-    // UNIQUE DEPENDENTS
+    // REAL SYMBOL IMPACTS
     // ------------------------------------------------------------
 
-    const uniqueDependents = new Set<string>();
+    /*
+     * IMPORTANT:
+     *
+     * The dependency graph represents potential/static dependencies.
+     * It must NOT be used to determine the actual blast radius.
+     *
+     * The actual blast radius is based only on consumers of symbols
+     * that were detected as impacted.
+     *
+     * Import statements are ignored because they do not represent
+     * an active execution/use of the symbol.
+     */
+    const uniqueImpactedFiles = new Set<string>();
 
     for (const item of reportItems) {
-        for (const dep of item.dependents) {
-            uniqueDependents.add(dep);
+        if (!item.symbolImpacts) {
+            continue;
+        }
+
+        for (const symbolImpact of item.symbolImpacts) {
+            for (const consumer of symbolImpact.consumers) {
+                if (consumer.snippet.trim().startsWith("import ")) {
+                    continue;
+                }
+
+                uniqueImpactedFiles.add(consumer.filePath);
+            }
         }
     }
 
-    const uniqueCount = uniqueDependents.size;
+    const uniqueCount = uniqueImpactedFiles.size;
 
-    // ------------------------------------------------------------
-    // RISK ASSESSMENT
-    // ------------------------------------------------------------
-
-    let riskLevelText = `${colors.green}🟢 LOW RISK${colors.reset}`;
-    let riskLevelLabel = "LOW";
-    let riskDescription =
-        "Changes are isolated or have minimal downstream exposure.";
-
-    if (uniqueCount > 2 && uniqueCount <= 5) {
-        riskLevelText = `${colors.yellow}🟡 MODERATE RISK${colors.reset}`;
-        riskLevelLabel = "MODERATE";
-        riskDescription =
-            "Changes affect a few dependent modules. Verify them before proceeding.";
-    } else if (uniqueCount > 5) {
-        riskLevelText = `${colors.red}🔴 HIGH RISK${colors.reset}`;
-        riskLevelLabel = "HIGH";
-        riskDescription =
-            "Wide blast radius! Core contracts or heavily used files were altered.";
+    // Tests que cubren las áreas afectadas (excluyendo los archivos de test)
+    const testsCoveringAffected = new Set<string>();
+    for (const file of uniqueImpactedFiles) {
+        if (isTestFile(file)) continue;
+        for (const test of testMapping?.coverage.get(file) ?? []) {
+            testsCoveringAffected.add(test);
+        }
     }
+
+    // ------------------------------------------------------------
+    // IMPACT COVERAGE (§15)
+    // ------------------------------------------------------------
+
+    const impactCoverage = computeImpactCoverage(
+        Array.from(uniqueImpactedFiles),
+        testMapping ?? { testFiles: [], coverage: new Map() }
+    );
+
+    // ------------------------------------------------------------
+    // RISK ASSESSMENT (§16)
+    // ------------------------------------------------------------
+
+    const transitiveFiles = new Set<string>();
+    let maxDepth = 0;
+    for (const item of reportItems) {
+        for (const file of item.transitiveImpact?.files ?? []) {
+            transitiveFiles.add(file);
+        }
+        maxDepth = Math.max(maxDepth, item.transitiveImpact?.maxDepth ?? 0);
+    }
+
+    const assessment = evaluateRisk({
+        uniqueConsumers: uniqueCount,
+        transitiveFiles: transitiveFiles.size,
+        maxDepth,
+        affectedComponents: impactCoverage.affected,
+        uncoveredComponents: impactCoverage.uncovered,
+        changedLines
+    }, riskWeights);
+
+    const riskStyles: Record<RiskLevel, { text: string; emoji: string; description: string }> = {
+        LOW: {
+            text: "LOW RISK",
+            emoji: "🟢",
+            description: "Changes are isolated or have minimal downstream exposure."
+        },
+        MEDIUM: {
+            text: "MEDIUM RISK",
+            emoji: "🟡",
+            description: "Changes affect a few dependent modules. Verify them before proceeding."
+        },
+        HIGH: {
+            text: "HIGH RISK",
+            emoji: "🟠",
+            description: "Wide blast radius! Core contracts or heavily used files were altered."
+        },
+        CRITICAL: {
+            text: "CRITICAL RISK",
+            emoji: "🔴",
+            description: "Critical core changes with broad downstream exposure. Review before merging."
+        }
+    };
+
+    const riskLevelText = `${riskStyles[assessment.level].emoji} ${assessment.level} RISK`;
+    const riskDescription = riskStyles[assessment.level].description;
 
     console.log("");
     console.log(
         `${colors.yellow}╭─ Risk Assessment ────────────────────────────────────────╮${colors.reset}`
     );
     console.log(
-        `${colors.yellow}│${colors.reset} ${riskLevelText}`
+        `${colors.yellow}│${colors.reset} ${riskLevelText} ` +
+        `${colors.dim}(score: ${assessment.score}/100)${colors.reset}`
     );
     console.log(
         `${colors.yellow}│${colors.reset}`
@@ -147,7 +229,62 @@ export function printConsoleReport(
         `${colors.yellow}│${colors.reset} ${colors.gray}${uniqueCount} unique dependent file${uniqueCount === 1 ? "" : "s"} at risk${colors.reset}`
     );
     console.log(
+        `${colors.yellow}│${colors.reset}`
+    );
+    console.log(
+        `${colors.yellow}│${colors.reset} ${colors.bold}Reasons:${colors.reset}`
+    );
+    for (const reason of assessment.reasons) {
+        console.log(
+            `${colors.yellow}│${colors.reset}   ${colors.gray}•${colors.reset} ${reason.label}` +
+            (reason.points > 0 ? ` ${colors.dim}(${reason.points} pts)${colors.reset}` : "")
+        );
+    }
+    console.log(
         `${colors.yellow}╰──────────────────────────────────────────────────────────╯${colors.reset}`
+    );
+
+    // ------------------------------------------------------------
+    // IMPACT COVERAGE BOX
+    // ------------------------------------------------------------
+
+    console.log("");
+    console.log(
+        `${colors.blue}╭─ Impact Coverage ─────────────────────────────────────────╮${colors.reset}`
+    );
+    console.log(
+        `${colors.blue}│${colors.reset} ` +
+        `Affected components : ${colors.bold}${impactCoverage.affected}${colors.reset}`
+    );
+    console.log(
+        `${colors.blue}│${colors.reset} ` +
+        `Covered             : ${colors.green}${colors.bold}${impactCoverage.covered}${colors.reset}`
+    );
+    console.log(
+        `${colors.blue}│${colors.reset} ` +
+        `Uncovered           : ${colors.red}${colors.bold}${impactCoverage.uncovered}${colors.reset}`
+    );
+    console.log(
+        `${colors.blue}│${colors.reset} ` +
+        `Impact coverage     : ${colors.bold}${impactCoverage.affected === 0 ? "—" : `${impactCoverage.percentage}%`}${colors.reset}`
+    );
+
+    if (impactCoverage.uncoveredFiles.length > 0) {
+        console.log(
+            `${colors.blue}│${colors.reset}`
+        );
+        console.log(
+            `${colors.blue}│${colors.reset} ${colors.red}${colors.bold}Uncovered:${colors.reset}`
+        );
+        impactCoverage.uncoveredFiles.forEach(file => {
+            console.log(
+                `${colors.blue}│${colors.reset}   ${colors.gray}✗${colors.reset} ${colors.cyan}${file}${colors.reset}`
+            );
+        });
+    }
+
+    console.log(
+        `${colors.blue}╰──────────────────────────────────────────────────────────╯${colors.reset}`
     );
 
     // ------------------------------------------------------------
@@ -370,12 +507,26 @@ export function printConsoleReport(
             `    ${colors.gray}│${colors.reset}`
         );
 
+        /*
+         * Keep the original dependency graph here because this section
+         * intentionally shows the static/potential dependency information.
+         *
+         * Risk Assessment above is based on REAL symbol impacts only.
+         */
         const dependents = item.dependents;
 
+        const transitive = item.transitiveImpact;
+
         if (dependents.length > 0) {
+            const reachSummary =
+                transitive && transitive.maxDepth > 1
+                    ? ` (${dependents.length} direct, ${transitive.files.length} total, depth ${transitive.maxDepth})`
+                    : ` (${dependents.length})`;
+
             console.log(
-                `    ${colors.gray}└─${colors.reset} ` +
-                `${colors.bold}Files in blast radius (${dependents.length})${colors.reset}`
+                `    ${colors.gray}├─${colors.reset} ` +
+                `${colors.bold}Files in blast radius${colors.reset}` +
+                `${colors.dim}${reachSummary}${colors.reset}`
             );
 
             dependents.forEach((dep, index) => {
@@ -383,14 +534,46 @@ export function printConsoleReport(
                 const prefix = isLast ? "└─" : "├─";
 
                 console.log(
-                    `         ${colors.gray}${prefix}${colors.reset} ` +
+                    `    ${colors.gray}│${colors.reset}    ` +
+                    `${colors.gray}${prefix}${colors.reset} ` +
                     `${colors.cyan}${dep}${colors.reset}`
                 );
             });
         } else {
             console.log(
-                `    ${colors.gray}└─${colors.reset} ` +
+                `    ${colors.gray}├─${colors.reset} ` +
                 `${colors.green}Files in blast radius: None (Isolated change)${colors.reset}`
+            );
+        }
+
+        // --------------------------------------------------------
+        // RELATED TESTS
+        // --------------------------------------------------------
+
+        console.log(
+            `    ${colors.gray}│${colors.reset}`
+        );
+
+        console.log(
+            `    ${colors.gray}└─${colors.reset} ` +
+            `${colors.bold}Related Tests${colors.reset}`
+        );
+
+        const relatedTests = item.relatedTests ?? [];
+
+        if (relatedTests.length > 0) {
+            relatedTests.forEach((testFile, index) => {
+                const isLast = index === relatedTests.length - 1;
+                const prefix = isLast ? "└─" : "├─";
+
+                console.log(
+                    `         ${colors.gray}${prefix}${colors.reset} ` +
+                    `${colors.green}✓${colors.reset} ${colors.cyan}${testFile}${colors.reset}`
+                );
+            });
+        } else {
+            console.log(
+                `         ${colors.gray}└─ ${colors.red}✗ No test covers this file${colors.reset}`
             );
         }
     }
@@ -411,12 +594,27 @@ export function printConsoleReport(
 
     console.log(
         `${colors.cyan}│${colors.reset} ` +
+        `Test files detected  : ${colors.bold}${testMapping?.testFiles.length ?? 0}${colors.reset}`
+    );
+
+    console.log(
+        `${colors.cyan}│${colors.reset} ` +
+        `Tests on affected    : ${colors.bold}${testsCoveringAffected.size}${colors.reset}`
+    );
+
+    console.log(
+        `${colors.cyan}│${colors.reset} ` +
         `Dependent files      : ${colors.bold}${uniqueCount}${colors.reset}`
     );
 
     console.log(
         `${colors.cyan}│${colors.reset} ` +
         `Risk level           : ${riskLevelText}`
+    );
+
+    console.log(
+        `${colors.cyan}│${colors.reset} ` +
+        `Impact coverage      : ${colors.bold}${impactCoverage.affected === 0 ? "—" : `${impactCoverage.percentage}%`}${colors.reset}`
     );
 
     console.log(
@@ -439,6 +637,21 @@ export function printConsoleReport(
         console.log(
             `    to ensure no unexpected regressions were introduced.`
         );
+
+        if (impactCoverage.uncoveredFiles.length > 0) {
+            console.log("");
+            console.log(
+                `    ${colors.red}${colors.bold}⚠️  These affected areas have no detected tests:${colors.reset}`
+            );
+            impactCoverage.uncoveredFiles.forEach(file => {
+                console.log(
+                    `    ${colors.gray}├─${colors.reset} ${colors.cyan}${file}${colors.reset}`
+                );
+            });
+            console.log(
+                `    ${colors.gray}└─${colors.reset} Consider adding tests before merging.`
+            );
+        }
     } else {
         console.log(
             `    This change is completely safe from downstream regressions.`
