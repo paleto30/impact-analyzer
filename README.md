@@ -6,7 +6,7 @@ Herramienta CLI que analiza el impacto de tus cambios de código antes de hacer 
 
 > **"¿Qué puedo romper con este cambio y qué debería probar?"**
 
-📖 **¿Cómo se usa y cómo leer los reportes?** → [GUIA.md](GUIA.md) (guía completa para desarrolladores)
+📖 **¿Cómo se usa y cómo leer los reportes?** → [docs/GUIA.md](docs/GUIA.md) (guía completa para desarrolladores)
 
 ## Instalación y uso
 
@@ -26,7 +26,7 @@ Opciones:
 | Opción | Descripción |
 |---|---|
 | `-b, --base <branch>` | Rama base a comparar (autodetección: `origin/HEAD` → `main`/`master` → `HEAD~1`) |
-| `--risk-weights <json>` | Pesos personalizados de los factores de riesgo, ej. `{"callerImpact":40,"testGaps":30}`. Propiedades configurables: `callerImpact`, `affectedFiles`, `dependencyDepth`, `testGaps`, `changeSize` (todas opcionales; las omitidas valen 0). Ver [GUIA.md](GUIA.md#21-pesos-configurables-del-riesgo) |
+| `--risk-weights <json>` | Pesos personalizados de los factores de riesgo, ej. `{"callerImpact":40,"testGaps":30}`. Propiedades configurables: `callerImpact`, `affectedFiles`, `dependencyDepth`, `testGaps`, `changeSize` (todas opcionales; las omitidas valen 0). Ver [docs/GUIA.md](docs/GUIA.md#21-pesos-configurables-del-riesgo) |
 
 ## Qué hace
 

@@ -6,7 +6,7 @@ CLI tool that analyzes the impact of your code changes before merging.
 
 > **"What can I break with this change, and what should I test?"**
 
-📖 **How to use it and how to read the reports?** → [GUIA.md](GUIA.md) (complete developer guide)
+📖 **How to use it and how to read the reports?** → [docs/GUIA.md](docs/GUIA.md) (complete developer guide)
 
 ## Installation and usage
 
@@ -26,7 +26,7 @@ Options:
 | Option | Description |
 |---|---|
 | `-b, --base <branch>` | Base branch to compare against (auto-detection: `origin/HEAD` → `main`/`master` → `HEAD~1`) |
-| `--risk-weights <json>` | Custom weights for the risk factors, e.g. `{"callerImpact":40,"testGaps":30}`. Configurable properties: `callerImpact`, `affectedFiles`, `dependencyDepth`, `testGaps`, `changeSize` (all optional; omitted ones default to 0). See [GUIA.md](GUIA.md#21-pesos-configurables-del-riesgo) |
+| `--risk-weights <json>` | Custom weights for the risk factors, e.g. `{"callerImpact":40,"testGaps":30}`. Configurable properties: `callerImpact`, `affectedFiles`, `dependencyDepth`, `testGaps`, `changeSize` (all optional; omitted ones default to 0). See [docs/GUIA.md](docs/GUIA.md#21-pesos-configurables-del-riesgo) |
 
 ## What it does
 
