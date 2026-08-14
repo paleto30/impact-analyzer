@@ -66,6 +66,7 @@ npm run dev -- analyze
 
 - Los pesos no tienen que sumar 100: el score final se limita a 100.
 - Si el peso de un factor es `0`, ese factor no aporta puntos (y su razón no aparece con puntos).
+- Si el JSON incluye claves desconocidas o valores no numéricos, el comando falla con un error claro listando las claves válidas.
 - El resto de la fórmula (umbrales y niveles `LOW/MEDIUM/HIGH/CRITICAL`) no es configurable en el MVP.
 
 **Ejemplos:**

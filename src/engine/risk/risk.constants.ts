@@ -8,6 +8,15 @@ export const DEFAULT_RISK_WEIGHTS: RiskWeights = {
     changeSize: 15
 };
 
+// Valid keys for --risk-weights
+export const RISK_WEIGHT_KEYS = [
+    "callerImpact",
+    "affectedFiles",
+    "dependencyDepth",
+    "testGaps",
+    "changeSize"
+] as const;
+
 // Saturation thresholds for each factor (proportional scoring)
 export const CALLER_IMPACT_THRESHOLD = 10;
 export const AFFECTED_FILES_THRESHOLD = 15;

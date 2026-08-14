@@ -8,6 +8,7 @@ import { buildDependencyGraph } from "./engine/graph/dependency.js";
 import { computeAssessment, generateReport } from "./engine/assessment.js";
 import { printConsoleReport } from "./engine/reporter/reporter.js";
 import { buildTestMapping } from "./engine/testing/test-mapping.js";
+import { RISK_WEIGHT_KEYS } from "./engine/risk/risk.constants.js";
 import type { RiskWeights } from "./engine/risk/risk.types.js";
 import { SymbolAnalyzer } from "./engine/analyzer/symbol-analyzer.js";
 import type { SymbolImpact } from "./engine/analyzer/symbol-impact.interface.js";
@@ -129,6 +130,21 @@ program
                 riskWeights = JSON.parse(options.riskWeights);
             } catch (error) {
                 console.error("❌ Error: --risk-weights must be a valid JSON object.");
+                process.exit(1);
+            }
+
+            const parsedWeights = JSON.parse(options.riskWeights) as unknown as Record<string, unknown>;
+            const hasUnknownKey = Object.keys(parsedWeights).some(
+                key => !(RISK_WEIGHT_KEYS as readonly string[]).includes(key)
+            );
+            const hasInvalidValue = Object.values(parsedWeights).some(
+                value => typeof value !== "number" || !Number.isFinite(value)
+            );
+            if (hasUnknownKey || hasInvalidValue) {
+                console.error(
+                    "❌ Error: --risk-weights must only contain numeric keys: " +
+                    "callerImpact, affectedFiles, dependencyDepth, testGaps, changeSize."
+                );
                 process.exit(1);
             }
         }
