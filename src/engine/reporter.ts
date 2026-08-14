@@ -119,23 +119,51 @@ export function printConsoleReport(
             console.log(`    ${colors.gray}└─ Exported symbols: None${colors.reset}`);
         }
 
-        // --- NUEVA SECCIÓN: Mostrar el impacto a nivel de símbolos y líneas exactas ---
+        // --- SECCIÓN ULTRA-LIMPIA Y VERTICALMENTE LEGIBLE ---
         if (item.symbolImpacts && item.symbolImpacts.length > 0) {
             console.log(`    ${colors.cyan}└─ Symbol-level consumption (Exact usages):${colors.reset}`);
-            item.symbolImpacts.forEach((symImpact, symIndex) => {
-                const isLastSym = symIndex === item.symbolImpacts!.length - 1;
-                const symPrefix = isLastSym ? "       └─" : "       ├─";
-                console.log(`    ${colors.gray}${symPrefix}${colors.reset} 🔸 Symbol: ${colors.bold}${symImpact.symbolName}${colors.reset}`);
 
-                symImpact.consumers.forEach((consumer, consIndex) => {
-                    const isLastCons = consIndex === symImpact.consumers.length - 1;
-                    const consPrefix = isLastCons ? "          └─" : "          ├─";
-                    console.log(`    ${colors.gray}${consPrefix}${colors.reset} 📂 ${colors.cyan}${consumer.filePath}:${consumer.line}${colors.reset}`);
-                    console.log(`             ${colors.gray}💡 code: "${colors.reset}${consumer.snippet}${colors.gray}"${colors.reset}`);
+            const consumersByFile = new Map<string, { symbol: string; line: number; snippet: string }[]>();
+
+            for (const symImpact of item.symbolImpacts) {
+                for (const consumer of symImpact.consumers) {
+                    // Omitir líneas de importación pura para evitar ruido visual repetitivo
+                    if (consumer.snippet.trim().startsWith("import ")) continue;
+
+                    if (!consumersByFile.has(consumer.filePath)) {
+                        consumersByFile.set(consumer.filePath, []);
+                    }
+                    consumersByFile.get(consumer.filePath)!.push({
+                        symbol: symImpact.symbolName,
+                        line: consumer.line,
+                        snippet: consumer.snippet
+                    });
+                }
+            }
+
+            const entries = Array.from(consumersByFile.entries());
+
+            // Si después de filtrar imports no queda nada que mostrar, saltamos esta parte
+            if (entries.length > 0) {
+                entries.forEach(([consumerFile, usages], fileIndex) => {
+                    const isLastFile = fileIndex === entries.length - 1;
+                    const filePrefix = isLastFile ? "       └─" : "       ├─";
+
+                    console.log(`    ${colors.gray}${filePrefix}${colors.reset} 📂 ${colors.cyan}${consumerFile}${colors.reset}`);
+
+                    usages.forEach((usage, usageIndex) => {
+                        const isLastUsage = usageIndex === usages.length - 1;
+                        const usagePrefix = isLastUsage ? "          └─" : "          ├─";
+
+                        console.log(`    ${colors.gray}${usagePrefix}${colors.reset} 🔸 Line ${colors.bold}${usage.line}${colors.reset} (${colors.dim}${usage.symbol}${colors.reset})`);
+                        console.log(`             ${colors.gray}💡 "${colors.reset}${usage.snippet.trim()}${colors.gray}"${colors.reset}`);
+                    });
                 });
-            });
+            } else {
+                console.log(`    ${colors.gray}       └─ (Only import references found)${colors.reset}`);
+            }
         }
-        // -----------------------------------------------------------------------------
+        // ----------------------------------------------------
 
         const dependents = item.dependents;
         if (dependents.length > 0) {
