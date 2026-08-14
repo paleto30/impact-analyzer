@@ -16,6 +16,7 @@ const colors = {
     gray: "\x1b[90m"
 };
 
+
 export interface ImpactReportItem {
     file: ChangedFile;
     analysis?: FileAnalysis | undefined;
@@ -23,6 +24,7 @@ export interface ImpactReportItem {
     symbolImpacts?: SymbolImpact[];
     modifiedSymbolNames?: Set<string>; // <-- nuevo: qué símbolos realmente cambiaron
 }
+
 
 export function generateReport(
     changedFiles: ChangedFile[],
@@ -38,7 +40,7 @@ export function generateReport(
             dependents: graph[file.path] || []
         });
     }
-
+    // lo reconoce como modificado
     return reportItems;
 }
 
@@ -84,7 +86,6 @@ export function printConsoleReport(
     console.log(`\n 📊 Risk Assessment: ${riskLevelText}`);
     console.log(`    ${colors.gray}${riskDescription} (${uniqueCount} unique dependent file${uniqueCount === 1 ? '' : 's'} at risk)${colors.reset}`);
 
-    // Iterar sobre cada archivo modificado como una "Tarjeta" independiente
     for (const item of reportItems) {
         let statusColor = colors.blue;
         let statusLabel = "MODIFIED";
@@ -97,12 +98,9 @@ export function printConsoleReport(
             statusLabel = "DELETED";
         }
 
-        // --- TARJETA DE ARCHIVO ---
-        console.log(`\n${colors.cyan}──────────────────────────────────────────────────${colors.reset}`);
-        console.log(` 📄 [${statusColor}${statusLabel}${colors.reset}] ${colors.bold}${colors.cyan}${item.file.path}${colors.reset}`);
-        console.log(`${colors.cyan}──────────────────────────────────────────────────${colors.reset}`);
+        console.log(`\n ${colors.bold}📄 [${statusColor}${statusLabel}${colors.reset}${colors.bold}] ${item.file.path}${colors.reset}`);
 
-        // 1. Símbolos exportados en este archivo
+        // Collect all exported symbols
         const symbols: { name: string; type: string }[] = [];
         if (item.analysis) {
             const { functions, classes, interfaces, types, enums } = item.analysis.exports;
@@ -114,26 +112,30 @@ export function printConsoleReport(
         }
 
         if (symbols.length > 0) {
-            console.log(` ${colors.bold}⚡ Exported Symbols:${colors.reset}`);
-            symbols.forEach(sym => {
+            console.log(`    ${colors.gray}└─ Exported symbols in this file:${colors.reset}`);
+            symbols.forEach((sym, index) => {
+                const isLast = index === symbols.length - 1;
+                const prefix = isLast ? "       └─" : "       ├─";
+
                 const wasModified = item.modifiedSymbolNames?.has(sym.name) ?? false;
-                const marker = wasModified ? `${colors.yellow}✏️ ` : "   ";
+                const marker = wasModified ? `${colors.yellow}✏️  ` : "   ";
                 const suffix = wasModified ? ` ${colors.dim}(modified)${colors.reset}` : "";
 
-                console.log(`    ${marker}${colors.bold}${sym.name}${colors.reset} ${colors.dim}(${sym.type})${colors.reset}${suffix}`);
+                console.log(`    ${colors.gray}${prefix}${colors.reset} ${marker}${colors.bold}${sym.name}${colors.reset} ${colors.dim}(${sym.type})${colors.reset}${suffix}`);
             });
         } else {
-            console.log(` ${colors.bold}⚡ Exported Symbols:${colors.reset} ${colors.gray}None${colors.reset}`);
+            console.log(`    ${colors.gray}└─ Exported symbols: None${colors.reset}`);
         }
 
-        // 2. Usos y consumos detallados (Downstream Usages)
+        // --- SECCIÓN ULTRA-CLARA Y DOCUMENTADA PARA CUALQUIER USUARIO ---
         if (item.symbolImpacts && item.symbolImpacts.length > 0) {
-            console.log(`\n ${colors.bold}🔍 Downstream Usages (Where it is used):${colors.reset}`);
+            console.log(`    ${colors.cyan}└─ Detailed Downstream Usages (Where these changes are used):${colors.reset}`);
 
             const consumersByFile = new Map<string, { symbol: string; line: number; snippet: string }[]>();
 
             for (const symImpact of item.symbolImpacts) {
                 for (const consumer of symImpact.consumers) {
+                    // Omitir líneas de importación pura para evitar ruido visual repetitivo
                     if (consumer.snippet.trim().startsWith("import ")) continue;
 
                     if (!consumersByFile.has(consumer.filePath)) {
@@ -150,31 +152,40 @@ export function printConsoleReport(
             const entries = Array.from(consumersByFile.entries());
 
             if (entries.length > 0) {
-                entries.forEach(([consumerFile, usages]) => {
-                    console.log(`    📂 Consumer File: ${colors.cyan}${colors.bold}${consumerFile}${colors.reset}`);
-                    usages.forEach(usage => {
-                        console.log(`       ↳ Symbol: ${colors.bold}${usage.symbol}${colors.reset} (Line ${colors.cyan}${usage.line}${colors.reset})`);
-                        console.log(`         ${colors.gray}💻 "${colors.reset}${colors.blue}${usage.snippet.trim()}${colors.reset}${colors.gray}"${colors.reset}`);
+                entries.forEach(([consumerFile, usages], fileIndex) => {
+                    const isLastFile = fileIndex === entries.length - 1;
+                    const filePrefix = isLastFile ? "       └─" : "       ├─";
+
+                    console.log(`    ${colors.gray}${filePrefix}${colors.reset} 📂 Affected File: ${colors.cyan}${colors.bold}${consumerFile}${colors.reset}`);
+
+                    usages.forEach((usage, usageIndex) => {
+                        const isLastUsage = usageIndex === usages.length - 1;
+                        const usagePrefix = isLastUsage ? "          └─" : "          ├─";
+
+                        console.log(`    ${colors.gray}${usagePrefix}${colors.reset} 🔸 Target Symbol: ${colors.bold}${usage.symbol}${colors.reset} (Line ${colors.cyan}${usage.line}${colors.reset})`);
+                        console.log(`             ${colors.gray}💻 Code snippet : "${colors.reset}${colors.blue}${usage.snippet.trim()}${colors.reset}${colors.gray}"${colors.reset}`);
                     });
                 });
             } else {
-                console.log(`    ${colors.gray}↳ No active execution usages outside of imports.${colors.reset}`);
+                console.log(`    ${colors.gray}       └─ (No active execution usages found outside of imports)${colors.reset}`);
             }
         }
+        // -----------------------------------------------------------------
 
-        // 3. Dependientes potencialmente afectados
         const dependents = item.dependents;
         if (dependents.length > 0) {
-            console.log(`\n ${colors.bold}⚠️ Potentially Affected Files (${dependents.length}):${colors.reset}`);
-            dependents.forEach(dep => {
-                console.log(`    • ${colors.cyan}${dep}${colors.reset}`);
+            console.log(`    ${colors.yellow}└─ Potentially affected files (${dependents.length}):${colors.reset}`);
+            dependents.forEach((dep, index) => {
+                const isLast = index === dependents.length - 1;
+                const prefix = isLast ? "       └─" : "       ├─";
+                console.log(`    ${colors.gray}${prefix}${colors.reset} ${colors.cyan}${dep}${colors.reset}`);
             });
         } else {
-            console.log(`\n ${colors.green}✔ Affected dependents: None (Isolated change)${colors.reset}`);
+            console.log(`    ${colors.green}└─ Affected dependents: None (Isolated change)${colors.reset}`);
         }
     }
 
-    console.log(`\n${colors.cyan}==================================================${colors.reset}`);
+    console.log(`\n${colors.cyan}--------------------------------------------------${colors.reset}`);
     console.log(` ${colors.bold}💡 Recommended Action:${colors.reset}`);
     if (uniqueCount > 0) {
         console.log(`    Run tests covering the dependent files listed above`);
@@ -183,6 +194,7 @@ export function printConsoleReport(
         console.log(`    This change is completely safe from downstream regressions.`);
     }
 
+    // Global summary showing unique files
     console.log(`\n ${colors.bold}📊 Summary:${colors.reset} ${reportItems.length} files analyzed | ${colors.bold}${uniqueCount}${colors.reset} unique dependent files impacted`);
     console.log(`${colors.cyan}${colors.bold}==================================================${colors.reset}\n`);
 }

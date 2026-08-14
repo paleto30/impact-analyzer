@@ -33,6 +33,7 @@ function rangeIntersectsModifiedLines(
 
 export class SymbolAnalyzer {
 
+    // 
     private project: Project;
     private projectRoot: string;
 
