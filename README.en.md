@@ -6,6 +6,8 @@ CLI tool that analyzes the impact of your code changes before merging.
 
 > **"What can I break with this change, and what should I test?"**
 
+📖 **How to use it and how to read the reports?** → [GUIA.md](GUIA.md) (complete developer guide)
+
 ## Installation and usage
 
 ```bash

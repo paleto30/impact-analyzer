@@ -6,6 +6,8 @@ Herramienta CLI que analiza el impacto de tus cambios de código antes de hacer 
 
 > **"¿Qué puedo romper con este cambio y qué debería probar?"**
 
+📖 **¿Cómo se usa y cómo leer los reportes?** → [GUIA.md](GUIA.md) (guía completa para desarrolladores)
+
 ## Instalación y uso
 
 ```bash
