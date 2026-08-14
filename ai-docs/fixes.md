@@ -7,6 +7,16 @@ scoring → test coverage mapping → reporte en consola.
 Se detectaron los siguientes problemas al correr el analizador contra su
 propio repositorio (dogfooding). Ordenados por prioridad.
 
+## Estado
+
+| # | Issue | Estado |
+|---|---|---|
+| 1 | Formato de blast radius | ✅ Resuelto (`35e1416`, verificado por `cli-integration.test.ts`) |
+| 2 | `test-mapping` sin tests | ✅ Resuelto (`test-mapping.test.ts` existía; suite ampliada en `35cce00`) |
+| 3 | Coverage con interfaces puras | ✅ Resuelto (`35e1416`) |
+| 4 | Calibración de pesos | ✅ Resuelto — pesos actuales correctos, ver `RISK_CALIBRATION.md` |
+| 5 | Related Tests sobre test files | ✅ Implementado (sin commit aún) |
+
 ---
 
 ## 1. [BUG] Inconsistencia en el formato de "Files in blast radius"
@@ -190,6 +200,42 @@ cambios genuinamente grandes/riesgosos deben alcanzar HIGH/CRITICAL.
 
 ---
 
+## 5. [REPORTING] "Related Tests" ruidoso para archivos de test
+
+**Prioridad: Baja-Media — señal/ruido del reporte; no afecta métricas.**
+
+### Síntoma
+
+Un archivo de test cambiado muestra en su propia sección:
+
+```
+└─ Related Tests
+     └─ ✗ No test covers this file
+```
+
+Engañoso: el archivo *es* un test; la línea sugiere falta de cobertura donde
+no aplica. El score de riesgo ya excluye archivos de test (igual que el #3
+excluye interfaces puras), así que el problema es puramente de presentación.
+
+### Qué se pide
+
+1. En `reporter.ts` (`printRelatedTests`), cuando el archivo cambiado sea un
+   test (`isTestFile`) y no tenga tests relacionados, reemplazar el `✗` con
+   una nota neutra (ej. `ℹ️ Test file — not counted as a covered area`).
+2. Conservar las relaciones reales: si otro test importa el archivo cambiado
+   (ej. helpers de test como `test/helpers/git-repo.ts`), deben seguir
+   listándose con `✓`. No ocultar la sección completa.
+3. Dejar los archivos de producción sin exports (ej. `src/cli.ts`, entry
+   points) con el `✗` actual — posible mejora futura, no parte de este fix.
+
+### Validación
+
+Correr contra un commit que toque archivos de test: los `.test.ts` muestran
+la nota neutra y ningún `✗`; los archivos de producción sin tests siguen con
+`✗`; los helpers importados por tests siguen listando sus tests con `✓`.
+
+---
+
 ## Orden sugerido de implementación
 
 1. Issue #1 (bug de inconsistencia) — es lo único que es un bug real de
@@ -199,3 +245,5 @@ cambios genuinamente grandes/riesgosos deben alcanzar HIGH/CRITICAL.
 3. Issue #3 (diseño de coverage) — cambio acotado a un archivo.
 4. Issue #4 (calibración) — requiere trabajo exploratorio (correr contra
    varios commits), dejar para el final.
+5. Issue #5 (reporting de test files) — cosmético, hacer cuando se quiera
+   limpiar el ruido del reporte.

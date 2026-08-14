@@ -4,6 +4,7 @@ import type { TestMapping } from "../testing/test-mapping.interface.js";
 import type { ImpactCoverage } from "../testing/impact-coverage.interface.js";
 import type { AssessmentResult } from "../assessment-result.interface.js";
 import type { ImpactReportItem } from "../impact-report-item.interface.js";
+import { isTestFile } from "../testing/test-mapping.js";
 import { colors, BOX_WIDTH } from "./colors.js";
 
 function boxTop(label: string, color: string): void {
@@ -440,6 +441,12 @@ function printRelatedTests(item: ImpactReportItem): void {
                 `${colors.green}✓${colors.reset} ${colors.cyan}${testFile}${colors.reset}`
             );
         });
+    } else if (isTestFile(item.file.path)) {
+        // A test file is not a covered area: it does not need tests about
+        // itself. Real relations (other tests importing it) are still shown.
+        console.log(
+            `         ${colors.gray}└─ ${colors.yellow}ℹ️ Test file — not counted as a covered area${colors.reset}`
+        );
     } else {
         console.log(
             `         ${colors.gray}└─ ${colors.red}✗ No test covers this file${colors.reset}`
