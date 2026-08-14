@@ -24,7 +24,7 @@ Options:
 | Option | Description |
 |---|---|
 | `-b, --base <branch>` | Base branch to compare against (auto-detection: `origin/HEAD` → `main`/`master` → `HEAD~1`) |
-| `--risk-weights <json>` | Custom weights for the risk factors, e.g. `{"callerImpact":40,"testGaps":30}` |
+| `--risk-weights <json>` | Custom weights for the risk factors, e.g. `{"callerImpact":40,"testGaps":30}`. Configurable properties: `callerImpact`, `affectedFiles`, `dependencyDepth`, `testGaps`, `changeSize` (all optional; omitted ones default to 0). See [GUIA.md](GUIA.md#21-pesos-configurables-del-riesgo) |
 
 ## What it does
 
@@ -49,6 +49,8 @@ Five factors with saturation thresholds. Default weights (configurable with `--r
 | Change size | 15 | modified lines (threshold 200) |
 
 Levels: `0-25 LOW · 26-50 MEDIUM · 51-75 HIGH · 76-100 CRITICAL`.
+
+The factor names are the JSON keys of `--risk-weights` (all optional).
 
 ## Report
 

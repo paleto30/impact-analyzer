@@ -24,7 +24,7 @@ Opciones:
 | Opción | Descripción |
 |---|---|
 | `-b, --base <branch>` | Rama base a comparar (autodetección: `origin/HEAD` → `main`/`master` → `HEAD~1`) |
-| `--risk-weights <json>` | Pesos personalizados de los factores de riesgo, ej. `{"callerImpact":40,"testGaps":30}` |
+| `--risk-weights <json>` | Pesos personalizados de los factores de riesgo, ej. `{"callerImpact":40,"testGaps":30}`. Propiedades configurables: `callerImpact`, `affectedFiles`, `dependencyDepth`, `testGaps`, `changeSize` (todas opcionales; las omitidas valen 0). Ver [GUIA.md](GUIA.md#21-pesos-configurables-del-riesgo) |
 
 ## Qué hace
 
@@ -49,6 +49,8 @@ Cinco factores con umbrales de saturación. Pesos por defecto (configurables con
 | Change size | 15 | líneas modificadas (umbral 200) |
 
 Niveles: `0-25 LOW · 26-50 MEDIUM · 51-75 HIGH · 76-100 CRITICAL`.
+
+Los nombres de los factores son las claves JSON de `--risk-weights` (todas opcionales).
 
 ## Reporte
 
