@@ -388,10 +388,11 @@ function printBlastRadius(item: ImpactReportItem): void {
     const transitive = item.transitiveImpact;
 
     if (dependents.length > 0) {
+        // Always show the same format: direct/transitive/depth. When the
+        // impact has no transitive reach, total equals direct and depth is 1.
         const reachSummary =
-            transitive && transitive.maxDepth > 1
-                ? ` (${dependents.length} direct, ${transitive.files.length} total, depth ${transitive.maxDepth})`
-                : ` (${dependents.length})`;
+            ` (${dependents.length} direct, ${transitive?.files.length ?? dependents.length} total, ` +
+            `depth ${transitive?.maxDepth ?? 1})`;
 
         console.log(
             `    ${colors.gray}├─${colors.reset} ` +

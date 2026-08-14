@@ -56,7 +56,7 @@ The factor names are the JSON keys of `--risk-weights` (all optional).
 
 ## Report
 
-The report includes: Git context, risk with score and reasons (with points), **Impact Coverage** (affected areas covered by tests, with uncovered ones listed), and per file: exported symbols (marking the modified ones), downstream usages with line and snippet, blast radius (direct/transitive/depth) and related tests (✓/✗).
+The report includes: Git context, risk with score and reasons (with points), **Impact Coverage** (affected areas covered by tests — pure type-contract files don't count —, with uncovered ones listed), and per file: exported symbols (marking the modified ones), downstream usages with line and snippet, blast radius (direct/transitive/depth) and related tests (✓/✗).
 
 ## Development
 

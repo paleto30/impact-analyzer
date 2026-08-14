@@ -19,3 +19,7 @@ export const LOW_MAX = 25;
 export const MEDIUM_MAX = 50;
 export const HIGH_MAX = 75;
 export const MAX_SCORE = 100;
+
+// Calibration reference: see RISK_CALIBRATION.md at the repo root.
+// Typical commits score LOW (0-25); 2-4 untested consumers reach MEDIUM;
+// only massive scaffolding/architecture changes reach HIGH/CRITICAL.

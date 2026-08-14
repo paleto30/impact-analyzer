@@ -138,7 +138,7 @@ Ejemplo real: se modificó `PaymentService.calculate()` (cambio de tasa 0.19 →
 **Cobertura de impacto** — métrica clave (diferente a la cobertura global de tests del proyecto):
 
 - **Affected components**: archivos de producción afectados (los archivos de test no cuentan como áreas).
-- **Impact coverage**: % de esas áreas que tienen al menos un test que las importa.
+- **Impact coverage**: % de esas áreas que tienen al menos un test que las importa. Los archivos que solo exportan contratos (interfaces/tipos/enums, sin funciones ni clases) no son testeables por diseño y quedan fuera de la métrica.
 - **Uncovered**: los archivos afectados **sin tests** — son exactamente lo que deberías probar.
 
 ```

@@ -1,6 +1,7 @@
 import type { ImpactReportItem } from "./impact-report-item.interface.js";
 import type { AssessmentResult } from "./assessment-result.interface.js";
 import type { ChangedFile } from "./git/changed-file.interface.js";
+import { analyzeFile } from "./parser/parser.js";
 import type { FileAnalysis } from "./parser/file-analysis.interface.js";
 import type { DependencyGraph } from "./graph/dependency-graph.interface.js";
 import { findTransitiveDependents } from "./graph/dependency.js";
@@ -71,9 +72,27 @@ export function computeAssessment(
         }
     }
 
+    // Collect the analysis of every affected file. Changed files already
+    // have one; consumers that were not changed are analyzed on demand so
+    // pure-contract files (interfaces/types only) can be excluded from the
+    // impact coverage metric.
+    const affectedAnalyses = new Map<string, FileAnalysis>();
+    for (const item of reportItems) {
+        if (item.analysis) affectedAnalyses.set(item.file.path, item.analysis);
+    }
+    for (const file of uniqueImpactedFiles) {
+        if (isTestFile(file) || affectedAnalyses.has(file)) continue;
+        try {
+            affectedAnalyses.set(file, analyzeFile(file));
+        } catch {
+            // Non-parseable file: keep it counted as an affected area
+        }
+    }
+
     const impactCoverage = computeImpactCoverage(
         Array.from(uniqueImpactedFiles),
-        testMapping
+        testMapping,
+        affectedAnalyses
     );
 
     const transitiveFiles = new Set<string>();
