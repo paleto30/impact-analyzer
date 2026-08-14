@@ -1,6 +1,7 @@
 import type { DependencyGraph } from "./dependency.js";
 import { FileStatus, type ChangedFile } from "./git/types.js";
 import type { FileAnalysis } from "./parser.js";
+import type { SymbolImpact } from "./symbol-analyzer.js";
 
 // ANSI color codes for zero-dependency terminal styling
 const colors = {
@@ -19,6 +20,7 @@ export interface ImpactReportItem {
     file: ChangedFile;
     analysis?: FileAnalysis | undefined;
     dependents: string[];
+    symbolImpacts?: SymbolImpact[]; // <-- Nuevo campo para el impacto a nivel de símbolos
 }
 
 export function generateReport(
@@ -116,6 +118,24 @@ export function printConsoleReport(
         } else {
             console.log(`    ${colors.gray}└─ Exported symbols: None${colors.reset}`);
         }
+
+        // --- NUEVA SECCIÓN: Mostrar el impacto a nivel de símbolos y líneas exactas ---
+        if (item.symbolImpacts && item.symbolImpacts.length > 0) {
+            console.log(`    ${colors.cyan}└─ Symbol-level consumption (Exact usages):${colors.reset}`);
+            item.symbolImpacts.forEach((symImpact, symIndex) => {
+                const isLastSym = symIndex === item.symbolImpacts!.length - 1;
+                const symPrefix = isLastSym ? "       └─" : "       ├─";
+                console.log(`    ${colors.gray}${symPrefix}${colors.reset} 🔸 Symbol: ${colors.bold}${symImpact.symbolName}${colors.reset}`);
+
+                symImpact.consumers.forEach((consumer, consIndex) => {
+                    const isLastCons = consIndex === symImpact.consumers.length - 1;
+                    const consPrefix = isLastCons ? "          └─" : "          ├─";
+                    console.log(`    ${colors.gray}${consPrefix}${colors.reset} 📂 ${colors.cyan}${consumer.filePath}:${consumer.line}${colors.reset}`);
+                    console.log(`             ${colors.gray}💡 code: "${colors.reset}${consumer.snippet}${colors.gray}"${colors.reset}`);
+                });
+            });
+        }
+        // -----------------------------------------------------------------------------
 
         const dependents = item.dependents;
         if (dependents.length > 0) {

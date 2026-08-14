@@ -56,3 +56,16 @@ export function analyzeFile(filePath: string): FileAnalysis {
         imports
     };
 }
+
+/**
+ * Extrae una lista plana de todos los nombres de símbolos exportados por el archivo.
+ */
+export function getExportedSymbolNames(analysis: FileAnalysis): string[] {
+    const names: string[] = [];
+    names.push(...analysis.exports.functions);
+    analysis.exports.classes.forEach(c => names.push(c.name));
+    names.push(...analysis.exports.interfaces);
+    names.push(...analysis.exports.types);
+    names.push(...analysis.exports.enums);
+    return names;
+}

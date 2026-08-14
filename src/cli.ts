@@ -2,9 +2,10 @@
 import { Command } from "commander";
 import { branchExists, detectBaseBranch, detectRepo, getChangedFiles } from "./engine/git/detect.js";
 import { FileStatus } from "./engine/git/types.js";
-import { analyzeFile, type FileAnalysis } from "./engine/parser.js";
+import { analyzeFile, getExportedSymbolNames, type FileAnalysis } from "./engine/parser.js";
 import { buildDependencyGraph } from "./engine/dependency.js";
 import { generateReport, printConsoleReport } from "./engine/reporter.js";
+import { SymbolAnalyzer, type SymbolImpact } from "./engine/symbol-analyzer.js";
 
 const program = new Command();
 
@@ -46,23 +47,40 @@ program
 
         const changedFiles = await getChangedFiles(git, baseBranch, "HEAD");
 
-        // 1. Collect AST analysis of modified files
+        // 3. Inicializar el Analizador de Símbolos con Indexación Única (Alto Rendimiento)
+        const symbolAnalyzer = new SymbolAnalyzer(process.cwd());
+
+        // 4. Collect AST analysis & Symbol Impacts of modified files
         const analyses = new Map<string, FileAnalysis>();
+        const allSymbolImpacts: SymbolImpact[] = [];
+
         for (const file of changedFiles) {
             if (file.status === FileStatus.Deleted) continue;
             try {
                 const analysis = analyzeFile(file.path);
                 analyses.set(file.path, analysis);
+
+                // Extraer los símbolos exportados y buscar sus consumidores exactos en el proyecto
+                const exportedSymbols = getExportedSymbolNames(analysis);
+                if (exportedSymbols.length > 0) {
+                    const impacts = symbolAnalyzer.analyzeSymbolImpact(file.path, exportedSymbols);
+                    allSymbolImpacts.push(...impacts);
+                }
             } catch (error) {
                 // Non-parseable or binary file, skip silently from AST
             }
         }
 
-        // 2. Build dependency graph
+        // 5. Build dependency graph
         const graph = buildDependencyGraph(process.cwd());
 
-        // 3. Generate and print the structured report
+        // 6. Generate and print the structured report
         const reportItems = generateReport(changedFiles, analyses, graph);
+
+        // Vincular los impactos de símbolos específicos a cada ítem del reporte
+        reportItems.forEach(item => {
+            item.symbolImpacts = allSymbolImpacts.filter(si => si.filePath === item.file.path);
+        });
 
         const currentBranch = (await git.revparse(["--abbrev-ref", "HEAD"])).trim();
 
