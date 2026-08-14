@@ -48,43 +48,111 @@ export function printConsoleReport(
     reportItems: ImpactReportItem[],
     gitContext?: { branch: string; base: string }
 ): void {
-    console.log(`\n${colors.cyan}${colors.bold}==================================================${colors.reset}`);
-    console.log(` ${colors.bold}🔍 IMPACT ANALYZER — BLAST RADIUS REPORT${colors.reset}`);
-    console.log(`${colors.cyan}${colors.bold}==================================================${colors.reset}`);
+    // ------------------------------------------------------------
+    // REPORT HEADER
+    // ------------------------------------------------------------
+
+    console.log("");
+    console.log(
+        `${colors.cyan}╭──────────────────────────────────────────────────────────╮${colors.reset}`
+    );
+    console.log(
+        `${colors.cyan}│${colors.reset} ` +
+        `${colors.bold}🔍 IMPACT ANALYZER — BLAST RADIUS REPORT${colors.reset}`
+    );
+    console.log(
+        `${colors.cyan}╰──────────────────────────────────────────────────────────╯${colors.reset}`
+    );
+
+    // ------------------------------------------------------------
+    // GIT CONTEXT
+    // ------------------------------------------------------------
 
     if (gitContext) {
-        console.log(` ${colors.bold}📂 Git Context:${colors.reset}`);
-        console.log(`    ${colors.gray}├─ Branch     :${colors.reset} ${colors.bold}${gitContext.branch}${colors.reset}`);
-        console.log(`    ${colors.gray}└─ Comparing  :${colors.reset} ${colors.bold}HEAD vs ${gitContext.base}${colors.reset}`);
-        console.log(`${colors.cyan}--------------------------------------------------${colors.reset}`);
+        console.log("");
+        console.log(` ${colors.bold}📂 Git Context${colors.reset}`);
+
+        console.log(
+            `    ${colors.gray}├─ Branch     :${colors.reset} ` +
+            `${colors.bold}${gitContext.branch}${colors.reset}`
+        );
+
+        console.log(
+            `    ${colors.gray}└─ Comparing  :${colors.reset} ` +
+            `${colors.bold}HEAD vs ${gitContext.base}${colors.reset}`
+        );
     }
 
-    console.log(`\n${colors.dim}ℹ️  What is this? This report evaluates the downstream impact${colors.reset}`);
-    console.log(`${colors.dim}   of your changes before merging or pushing code.${colors.reset}`);
+    // ------------------------------------------------------------
+    // DESCRIPTION
+    // ------------------------------------------------------------
 
-    // Collect ALL unique dependent files across all changed items using a Set
+    console.log("");
+    console.log(
+        `${colors.dim}ℹ️  What is this? This report evaluates the downstream impact${colors.reset}`
+    );
+    console.log(
+        `${colors.dim}   of your changes before merging or pushing code.${colors.reset}`
+    );
+
+    // ------------------------------------------------------------
+    // UNIQUE DEPENDENTS
+    // ------------------------------------------------------------
+
     const uniqueDependents = new Set<string>();
+
     for (const item of reportItems) {
         for (const dep of item.dependents) {
             uniqueDependents.add(dep);
         }
     }
+
     const uniqueCount = uniqueDependents.size;
 
-    // Determine risk level based on UNIQUE affected files
+    // ------------------------------------------------------------
+    // RISK ASSESSMENT
+    // ------------------------------------------------------------
+
     let riskLevelText = `${colors.green}🟢 LOW RISK${colors.reset}`;
-    let riskDescription = "Changes are isolated or have minimal downstream exposure.";
+    let riskLevelLabel = "LOW";
+    let riskDescription =
+        "Changes are isolated or have minimal downstream exposure.";
 
     if (uniqueCount > 2 && uniqueCount <= 5) {
         riskLevelText = `${colors.yellow}🟡 MODERATE RISK${colors.reset}`;
-        riskDescription = "Changes affect a few dependent modules. Verify them before proceeding.";
+        riskLevelLabel = "MODERATE";
+        riskDescription =
+            "Changes affect a few dependent modules. Verify them before proceeding.";
     } else if (uniqueCount > 5) {
         riskLevelText = `${colors.red}🔴 HIGH RISK${colors.reset}`;
-        riskDescription = "Wide blast radius! Core contracts or heavily used files were altered.";
+        riskLevelLabel = "HIGH";
+        riskDescription =
+            "Wide blast radius! Core contracts or heavily used files were altered.";
     }
 
-    console.log(`\n 📊 Risk Assessment: ${riskLevelText}`);
-    console.log(`    ${colors.gray}${riskDescription} (${uniqueCount} unique dependent file${uniqueCount === 1 ? '' : 's'} at risk)${colors.reset}`);
+    console.log("");
+    console.log(
+        `${colors.yellow}╭─ Risk Assessment ────────────────────────────────────────╮${colors.reset}`
+    );
+    console.log(
+        `${colors.yellow}│${colors.reset} ${riskLevelText}`
+    );
+    console.log(
+        `${colors.yellow}│${colors.reset}`
+    );
+    console.log(
+        `${colors.yellow}│${colors.reset} ${colors.gray}${riskDescription}${colors.reset}`
+    );
+    console.log(
+        `${colors.yellow}│${colors.reset} ${colors.gray}${uniqueCount} unique dependent file${uniqueCount === 1 ? "" : "s"} at risk${colors.reset}`
+    );
+    console.log(
+        `${colors.yellow}╰──────────────────────────────────────────────────────────╯${colors.reset}`
+    );
+
+    // ------------------------------------------------------------
+    // FILE ANALYSIS
+    // ------------------------------------------------------------
 
     for (const item of reportItems) {
         let statusColor = colors.blue;
@@ -98,49 +166,145 @@ export function printConsoleReport(
             statusLabel = "DELETED";
         }
 
-        console.log(`\n ${colors.bold}📄 [${statusColor}${statusLabel}${colors.reset}${colors.bold}] ${item.file.path}${colors.reset}`);
+        // --------------------------------------------------------
+        // FILE HEADER
+        // --------------------------------------------------------
 
-        // Collect all exported symbols
+        console.log("");
+        console.log(
+            `${colors.cyan}╭──────────────────────────────────────────────────────────╮${colors.reset}`
+        );
+        console.log(
+            `${colors.cyan}│${colors.reset} ` +
+            `${colors.bold}📄 [${statusColor}${statusLabel}${colors.reset}${colors.bold}] ` +
+            `${item.file.path}${colors.reset}`
+        );
+        console.log(
+            `${colors.cyan}╰──────────────────────────────────────────────────────────╯${colors.reset}`
+        );
+
+        // --------------------------------------------------------
+        // EXPORTED SYMBOLS
+        // --------------------------------------------------------
+
         const symbols: { name: string; type: string }[] = [];
+
         if (item.analysis) {
-            const { functions, classes, interfaces, types, enums } = item.analysis.exports;
-            functions.forEach(f => symbols.push({ name: f, type: "function" }));
-            classes.forEach(c => symbols.push({ name: c.name, type: `class (${c.methods.length} methods)` }));
-            interfaces.forEach(i => symbols.push({ name: i, type: "interface" }));
-            types.forEach(t => symbols.push({ name: t, type: "type" }));
-            enums.forEach(e => symbols.push({ name: e, type: "enum" }));
+            const {
+                functions,
+                classes,
+                interfaces,
+                types,
+                enums
+            } = item.analysis.exports;
+
+            functions.forEach(f =>
+                symbols.push({
+                    name: f,
+                    type: "function"
+                })
+            );
+
+            classes.forEach(c =>
+                symbols.push({
+                    name: c.name,
+                    type: `class, ${c.methods.length} methods`
+                })
+            );
+
+            interfaces.forEach(i =>
+                symbols.push({
+                    name: i,
+                    type: "interface"
+                })
+            );
+
+            types.forEach(t =>
+                symbols.push({
+                    name: t,
+                    type: "type"
+                })
+            );
+
+            enums.forEach(e =>
+                symbols.push({
+                    name: e,
+                    type: "enum"
+                })
+            );
         }
+
+        console.log("");
+        console.log(
+            `    ${colors.gray}├─${colors.reset} ` +
+            `${colors.bold}Exported symbols${colors.reset}`
+        );
 
         if (symbols.length > 0) {
-            console.log(`    ${colors.gray}└─ Exported symbols in this file:${colors.reset}`);
             symbols.forEach((sym, index) => {
                 const isLast = index === symbols.length - 1;
-                const prefix = isLast ? "       └─" : "       ├─";
+                const prefix = isLast ? "└─" : "├─";
 
-                const wasModified = item.modifiedSymbolNames?.has(sym.name) ?? false;
-                const marker = wasModified ? `${colors.yellow}✏️  ` : "   ";
-                const suffix = wasModified ? ` ${colors.dim}(modified)${colors.reset}` : "";
+                const wasModified =
+                    item.modifiedSymbolNames?.has(sym.name) ?? false;
 
-                console.log(`    ${colors.gray}${prefix}${colors.reset} ${marker}${colors.bold}${sym.name}${colors.reset} ${colors.dim}(${sym.type})${colors.reset}${suffix}`);
+                const marker = wasModified
+                    ? `${colors.yellow}✏️  `
+                    : "";
+
+                const suffix = wasModified
+                    ? ` ${colors.dim}(modified)${colors.reset}`
+                    : "";
+
+                console.log(
+                    `    ${colors.gray}│${colors.reset}    ` +
+                    `${colors.gray}${prefix}${colors.reset} ` +
+                    `${marker}${colors.bold}${sym.name}${colors.reset} ` +
+                    `${colors.dim}(${sym.type})${colors.reset}` +
+                    suffix
+                );
             });
         } else {
-            console.log(`    ${colors.gray}└─ Exported symbols: None${colors.reset}`);
+            console.log(
+                `    ${colors.gray}│${colors.reset}    ` +
+                `${colors.gray}└─ Exported symbols: None${colors.reset}`
+            );
         }
 
-        // --- SECCIÓN ULTRA-CLARA Y DOCUMENTADA PARA CUALQUIER USUARIO ---
-        if (item.symbolImpacts && item.symbolImpacts.length > 0) {
-            console.log(`    ${colors.cyan}└─ Detailed Downstream Usages (Where these changes are used):${colors.reset}`);
+        // --------------------------------------------------------
+        // DETAILED DOWNSTREAM USAGES
+        // --------------------------------------------------------
 
-            const consumersByFile = new Map<string, { symbol: string; line: number; snippet: string }[]>();
+        console.log(
+            `    ${colors.gray}│${colors.reset}`
+        );
+
+        console.log(
+            `    ${colors.gray}├─${colors.reset} ` +
+            `${colors.bold}Detailed Downstream Usages${colors.reset}`
+        );
+
+        if (item.symbolImpacts && item.symbolImpacts.length > 0) {
+            const consumersByFile = new Map<
+                string,
+                {
+                    symbol: string;
+                    line: number;
+                    snippet: string;
+                }[]
+            >();
 
             for (const symImpact of item.symbolImpacts) {
                 for (const consumer of symImpact.consumers) {
                     // Omitir líneas de importación pura para evitar ruido visual repetitivo
-                    if (consumer.snippet.trim().startsWith("import ")) continue;
+                    if (consumer.snippet.trim().startsWith("import ")) {
+                        continue;
+                    }
 
                     if (!consumersByFile.has(consumer.filePath)) {
                         consumersByFile.set(consumer.filePath, []);
                     }
+
                     consumersByFile.get(consumer.filePath)!.push({
                         symbol: symImpact.symbolName,
                         line: consumer.line,
@@ -154,47 +318,132 @@ export function printConsoleReport(
             if (entries.length > 0) {
                 entries.forEach(([consumerFile, usages], fileIndex) => {
                     const isLastFile = fileIndex === entries.length - 1;
-                    const filePrefix = isLastFile ? "       └─" : "       ├─";
+                    const filePrefix = isLastFile ? "└─" : "├─";
 
-                    console.log(`    ${colors.gray}${filePrefix}${colors.reset} 📂 Affected File: ${colors.cyan}${colors.bold}${consumerFile}${colors.reset}`);
+                    console.log(
+                        `    ${colors.gray}│${colors.reset}    ` +
+                        `${colors.gray}${filePrefix}${colors.reset} ` +
+                        `📂 Affected File: ` +
+                        `${colors.cyan}${colors.bold}${consumerFile}${colors.reset}`
+                    );
 
                     usages.forEach((usage, usageIndex) => {
-                        const isLastUsage = usageIndex === usages.length - 1;
-                        const usagePrefix = isLastUsage ? "          └─" : "          ├─";
+                        const isLastUsage =
+                            usageIndex === usages.length - 1;
 
-                        console.log(`    ${colors.gray}${usagePrefix}${colors.reset} 🔸 Target Symbol: ${colors.bold}${usage.symbol}${colors.reset} (Line ${colors.cyan}${usage.line}${colors.reset})`);
-                        console.log(`             ${colors.gray}💻 Code snippet : "${colors.reset}${colors.blue}${usage.snippet.trim()}${colors.reset}${colors.gray}"${colors.reset}`);
+                        const usagePrefix = isLastUsage ? "└─" : "├─";
+
+                        console.log(
+                            `    ${colors.gray}│${colors.reset}         ` +
+                            `${colors.gray}${usagePrefix}${colors.reset} ` +
+                            `🔸 Target Symbol: ` +
+                            `${colors.bold}${usage.symbol}${colors.reset} ` +
+                            `(Line ${colors.cyan}${usage.line}${colors.reset})`
+                        );
+
+                        console.log(
+                            `    ${colors.gray}│${colors.reset}                ` +
+                            `${colors.gray}💻 Code snippet : "${colors.reset}` +
+                            `${colors.blue}${usage.snippet.trim()}${colors.reset}` +
+                            `${colors.gray}"${colors.reset}`
+                        );
                     });
                 });
             } else {
-                console.log(`    ${colors.gray}       └─ (No active execution usages found outside of imports)${colors.reset}`);
+                console.log(
+                    `    ${colors.gray}│${colors.reset}    ` +
+                    `${colors.gray}└─ No active execution usages found outside of imports${colors.reset}`
+                );
             }
+        } else {
+            console.log(
+                `    ${colors.gray}│${colors.reset}    ` +
+                `${colors.gray}└─ No downstream usages detected${colors.reset}`
+            );
         }
-        // -----------------------------------------------------------------
+
+        // --------------------------------------------------------
+        // FILES IN BLAST RADIUS
+        // --------------------------------------------------------
+
+        console.log(
+            `    ${colors.gray}│${colors.reset}`
+        );
 
         const dependents = item.dependents;
+
         if (dependents.length > 0) {
-            console.log(`    ${colors.yellow}└─ Potentially affected files (${dependents.length}):${colors.reset}`);
+            console.log(
+                `    ${colors.gray}└─${colors.reset} ` +
+                `${colors.bold}Files in blast radius (${dependents.length})${colors.reset}`
+            );
+
             dependents.forEach((dep, index) => {
                 const isLast = index === dependents.length - 1;
-                const prefix = isLast ? "       └─" : "       ├─";
-                console.log(`    ${colors.gray}${prefix}${colors.reset} ${colors.cyan}${dep}${colors.reset}`);
+                const prefix = isLast ? "└─" : "├─";
+
+                console.log(
+                    `         ${colors.gray}${prefix}${colors.reset} ` +
+                    `${colors.cyan}${dep}${colors.reset}`
+                );
             });
         } else {
-            console.log(`    ${colors.green}└─ Affected dependents: None (Isolated change)${colors.reset}`);
+            console.log(
+                `    ${colors.gray}└─${colors.reset} ` +
+                `${colors.green}Files in blast radius: None (Isolated change)${colors.reset}`
+            );
         }
     }
 
-    console.log(`\n${colors.cyan}--------------------------------------------------${colors.reset}`);
-    console.log(` ${colors.bold}💡 Recommended Action:${colors.reset}`);
+    // ------------------------------------------------------------
+    // ANALYSIS SUMMARY
+    // ------------------------------------------------------------
+
+    console.log("");
+    console.log(
+        `${colors.cyan}╭─ Analysis Summary ───────────────────────────────────────╮${colors.reset}`
+    );
+
+    console.log(
+        `${colors.cyan}│${colors.reset} ` +
+        `Files analyzed       : ${colors.bold}${reportItems.length}${colors.reset}`
+    );
+
+    console.log(
+        `${colors.cyan}│${colors.reset} ` +
+        `Dependent files      : ${colors.bold}${uniqueCount}${colors.reset}`
+    );
+
+    console.log(
+        `${colors.cyan}│${colors.reset} ` +
+        `Risk level           : ${riskLevelText}`
+    );
+
+    console.log(
+        `${colors.cyan}╰──────────────────────────────────────────────────────────╯${colors.reset}`
+    );
+
+    // ------------------------------------------------------------
+    // RECOMMENDED ACTION
+    // ------------------------------------------------------------
+
+    console.log("");
+    console.log(
+        ` ${colors.bold}💡 Recommended Action${colors.reset}`
+    );
+
     if (uniqueCount > 0) {
-        console.log(`    Run tests covering the dependent files listed above`);
-        console.log(`    to ensure no unexpected regressions were introduced.`);
+        console.log(
+            `    Run tests covering the dependent files listed above`
+        );
+        console.log(
+            `    to ensure no unexpected regressions were introduced.`
+        );
     } else {
-        console.log(`    This change is completely safe from downstream regressions.`);
+        console.log(
+            `    This change is completely safe from downstream regressions.`
+        );
     }
 
-    // Global summary showing unique files
-    console.log(`\n ${colors.bold}📊 Summary:${colors.reset} ${reportItems.length} files analyzed | ${colors.bold}${uniqueCount}${colors.reset} unique dependent files impacted`);
-    console.log(`${colors.cyan}${colors.bold}==================================================${colors.reset}\n`);
+    console.log("");
 }
