@@ -14,8 +14,45 @@ propio repositorio (dogfooding). Ordenados por prioridad.
 | 1 | Formato de blast radius | ✅ Resuelto (`35e1416`, verificado por `cli-integration.test.ts`) |
 | 2 | `test-mapping` sin tests | ✅ Resuelto (`test-mapping.test.ts` existía; suite ampliada en `35cce00`) |
 | 3 | Coverage con interfaces puras | ✅ Resuelto (`35e1416`) |
-| 4 | Calibración de pesos | ✅ Resuelto — pesos actuales correctos, ver `RISK_CALIBRATION.md` |
-| 5 | Related Tests sobre test files | ✅ Implementado (sin commit aún) |
+| 4 | Calibración de pesos | ✅ Resuelto — pesos actuales correctos, ver `docs/RISK_CALIBRATION.md` |
+| 5 | Related Tests sobre test files | ✅ Resuelto (`29b035a`) |
+| 6 | `export const` ignorado por el parser | ✅ Resuelto (ver sección 6) |
+
+---
+
+## 6. [BUG] `export const` no detectado por el análisis de símbolos
+
+**Prioridad: Alta — silencia símbolos y consumidores reales.**
+
+### Síntoma
+
+Un archivo que solo exporta `export const` (ej. `risk.constants.ts`) muestra
+`Exported symbols: None` y `No downstream usages`, aunque el grafo de
+dependencias (nivel import) sí detecta sus dependientes. Causa:
+`parser.ts` solo recorría `getFunctions/getClasses/getInterfaces/
+getTypeAliases/getEnums`, nunca `getVariableDeclarations()`.
+
+### Decisión
+
+- Nueva categoría `exports.variables: string[]` en `FileAnalysis`.
+- Las funciones flecha / function expressions asignadas a `export const`
+  se reportan como **funciones** (son lógica ejecutable): así
+  `findReferences`, el filtro de líneas modificadas y el filtro de coverage
+  (testable = tiene funciones/clases) funcionan sin cambios.
+- Archivos solo-constantes quedan excluidos del coverage ("no testeables"),
+  consistente con la filosofía del issue #3.
+
+### Validación
+
+Dogfooding sobre el commit que tocó `risk.constants.ts`: los 10 consts
+aparecen, `RISK_WEIGHT_KEYS` marcado como modificado, y el consumidor real
+(`cli.ts:138` — `RISK_WEIGHT_KEYS.includes(key)`) se detecta. 45/45 tests.
+
+### Observación pendiente (fuera de alcance)
+
+Por la misma filosofía, los archivos de solo tipos/constantes muestran
+`✗ No test covers this file` en su sección propia (ruido análogo al #5, que
+solo cubrió test files). Posible mejora futura.
 
 ---
 

@@ -1,5 +1,5 @@
 import path from "node:path";
-import { type Project, type SourceFile, type Node, InterfaceDeclaration, TypeAliasDeclaration, ClassDeclaration, FunctionDeclaration, EnumDeclaration } from "ts-morph";
+import { type Project, type SourceFile, type Node, InterfaceDeclaration, TypeAliasDeclaration, ClassDeclaration, FunctionDeclaration, EnumDeclaration, VariableDeclaration } from "ts-morph";
 import { getProject } from "../project.js";
 import type { SymbolImpact } from "./symbol-impact.interface.js";
 
@@ -8,7 +8,8 @@ type ExportableNode =
     | TypeAliasDeclaration
     | ClassDeclaration
     | FunctionDeclaration
-    | EnumDeclaration;
+    | EnumDeclaration
+    | VariableDeclaration;
 
 function rangeIntersectsModifiedLines(
     startLine: number,
@@ -42,7 +43,8 @@ export class SymbolAnalyzer {
             sourceFile.getTypeAlias(symbolName) ||
             sourceFile.getClass(symbolName) ||
             sourceFile.getFunction(symbolName) ||
-            sourceFile.getEnum(symbolName)
+            sourceFile.getEnum(symbolName) ||
+            sourceFile.getVariableDeclaration(symbolName)
         );
     }
 

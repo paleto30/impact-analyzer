@@ -6,6 +6,7 @@ import { computeImpactCoverage } from "../src/engine/testing/impact-coverage.js"
 import { analyzeFile } from "../src/engine/parser/parser.js";
 
 const COVERAGE = path.resolve("test/fixtures/test-coverage");
+const SIMPLE = path.resolve("test/fixtures/simple-project");
 
 describe("test mapping", () => {
     it("detects test files by name", () => {
@@ -82,5 +83,35 @@ describe("test mapping", () => {
         assert.equal(coverage.affected, 1, "interface-only files are not affected areas");
         assert.deepEqual(coverage.uncoveredFiles, ["payment/InvoiceService.ts"]);
         assert.equal(coverage.percentage, 0);
+    });
+
+    it("counts arrow-function consts as testable areas", () => {
+        const mapping = buildTestMapping(COVERAGE);
+        const analyses = new Map([
+            ["D.ts", analyzeFile(path.join(SIMPLE, "D.ts"))],
+            ["E.ts", analyzeFile(path.join(SIMPLE, "E.ts"))]
+        ]);
+
+        const coverage = computeImpactCoverage(["D.ts", "E.ts"], mapping, analyses);
+
+        assert.equal(coverage.affected, 2, "arrow function consts are executable logic");
+    });
+
+    it("excludes const-only files from the coverage metric", () => {
+        const mapping = buildTestMapping(COVERAGE);
+        const analyses = new Map([
+            [
+                "src/engine/risk/risk.constants.ts",
+                analyzeFile(path.resolve("src/engine/risk/risk.constants.ts"))
+            ]
+        ]);
+
+        const coverage = computeImpactCoverage(
+            ["src/engine/risk/risk.constants.ts"],
+            mapping,
+            analyses
+        );
+
+        assert.equal(coverage.affected, 0, "plain constants are not testable areas");
     });
 });

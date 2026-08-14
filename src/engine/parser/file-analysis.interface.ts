@@ -6,6 +6,7 @@ export interface FileAnalysis {
         interfaces: string[];
         types: string[];
         enums: string[];
+        variables: string[];
     };
     imports: string[];
 }

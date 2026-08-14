@@ -100,5 +100,27 @@ describe("SymbolAnalyzer", () => {
             const consumerLines = impacts[0]?.consumers.map(c => c.line) ?? [];
             assert.ok(!consumerLines.includes(2), "definition line of b() must be excluded");
         });
+
+        it("detects modified exported variables by line range", () => {
+            // APP_VERSION is on line 1 of D.ts; compute on line 3
+            const modified = analyzer.getModifiedSymbolNames(
+                "D.ts",
+                ["APP_VERSION", "compute"],
+                new Set([1])
+            );
+            assert.deepEqual(modified, new Set(["APP_VERSION"]));
+        });
+
+        it("finds consumers of an arrow-function const", () => {
+            // compute is used by E.ts (import at line 1, call at line 4)
+            const impacts = analyzer.analyzeSymbolImpact("D.ts", ["compute"]);
+            assert.equal(impacts.length, 1);
+            assert.equal(impacts[0]?.symbolName, "compute");
+            const consumers = impacts[0]?.consumers ?? [];
+            assert.ok(
+                consumers.some(c => c.filePath === "E.ts" && c.line === 4 && c.snippet.includes("compute")),
+                "E.ts must appear as consumer of the arrow const"
+            );
+        });
     });
 });

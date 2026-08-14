@@ -1,4 +1,5 @@
 import path from "node:path";
+import { Node } from "ts-morph";
 import { getProject } from "../project.js";
 import type { FileAnalysis } from "./file-analysis.interface.js";
 
@@ -37,13 +38,35 @@ export function analyzeFile(filePath: string): FileAnalysis {
         .filter(e => e.isExported())
         .map(e => e.getName());
 
-    // 6. Imports
+    // 6. Variables (export const/let/var). Arrow functions and function
+    // expressions assigned to a variable are reported as functions: they
+    // are executable logic, and findReferences, the modified-line filter
+    // and the coverage metric all treat them like real functions.
+    const variables: string[] = [];
+    for (const declaration of sourceFile.getVariableDeclarations()) {
+        if (!declaration.isExported()) continue;
+
+        const name = declaration.getName();
+        if (!name) continue; // destructured exports have no simple name
+
+        const initializer = declaration.getInitializer();
+        if (
+            initializer &&
+            (Node.isArrowFunction(initializer) || Node.isFunctionExpression(initializer))
+        ) {
+            functions.push(name);
+        } else {
+            variables.push(name);
+        }
+    }
+
+    // 7. Imports
     const imports = sourceFile.getImportDeclarations()
         .map(imp => imp.getModuleSpecifierValue());
 
     return {
         filePath: sourceFile.getFilePath(),
-        exports: { functions, classes, interfaces, types, enums },
+        exports: { functions, classes, interfaces, types, enums, variables },
         imports
     };
 }
@@ -58,5 +81,6 @@ export function getExportedSymbolNames(analysis: FileAnalysis): string[] {
     names.push(...analysis.exports.interfaces);
     names.push(...analysis.exports.types);
     names.push(...analysis.exports.enums);
+    names.push(...analysis.exports.variables);
     return names;
 }

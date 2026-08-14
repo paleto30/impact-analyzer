@@ -14,7 +14,7 @@ Para ello combina:
 
 - **Git**: identifica qué archivos cambiaron y en qué líneas.
 - **AST** (ts-morph): entiende la estructura del código, no texto plano.
-- **Análisis de símbolos**: determina qué funciones/clases/interfaces/tipos exportados se modificaron **físicamente** (intersección de rangos de líneas del AST con el diff).
+- **Análisis de símbolos**: determina qué funciones/clases/interfaces/tipos/constantes exportados se modificaron **físicamente** (intersección de rangos de líneas del AST con el diff). Las funciones flecha asignadas a `export const` cuentan como funciones.
 - **Consumidores reales**: encuentra los usos activos de cada símbolo modificado (los `import` puros NO cuentan como impacto).
 - **Grafo de dependencias**: qué archivos importan a qué archivos, directa y transitivamente.
 - **Test mapping**: detecta archivos de test (`*.test.ts`, `*.spec.ts`) y qué código cubren.
@@ -139,7 +139,7 @@ Ejemplo real: se modificó `PaymentService.calculate()` (cambio de tasa 0.19 →
 **Cobertura de impacto** — métrica clave (diferente a la cobertura global de tests del proyecto):
 
 - **Affected components**: archivos de producción afectados (los archivos de test no cuentan como áreas).
-- **Impact coverage**: % de esas áreas que tienen al menos un test que las importa. Los archivos que solo exportan contratos (interfaces/tipos/enums, sin funciones ni clases) no son testeables por diseño y quedan fuera de la métrica.
+- **Impact coverage**: % de esas áreas que tienen al menos un test que las importa. Los archivos que solo exportan contratos o constantes (interfaces/tipos/enums, sin funciones, clases ni constantes con comportamiento) no son testeables por diseño y quedan fuera de la métrica.
 - **Uncovered**: los archivos afectados **sin tests** — son exactamente lo que deberías probar.
 
 ```

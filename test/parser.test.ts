@@ -25,8 +25,14 @@ describe("parser", () => {
         ]);
     });
 
-    it("flattens exported symbol names", () => {
-        const analysis = analyzeFile(path.resolve("test/fixtures/test-coverage/payment/PaymentService.ts"));
-        assert.deepEqual(getExportedSymbolNames(analysis), ["PaymentService"]);
+    it("detects exported variables and classifies arrow functions as functions", () => {
+        const analysis = analyzeFile(path.join(SIMPLE, "D.ts"));
+        assert.ok(analysis.exports.functions.includes("compute"), "arrow function consts are reported as functions");
+        assert.deepEqual(analysis.exports.variables, ["APP_VERSION", "DEFAULT_LIMIT"]);
+    });
+
+    it("flattens exported symbol names including variables", () => {
+        const analysis = analyzeFile(path.join(SIMPLE, "D.ts"));
+        assert.deepEqual(getExportedSymbolNames(analysis), ["compute", "APP_VERSION", "DEFAULT_LIMIT"]);
     });
 });

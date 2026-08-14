@@ -211,7 +211,8 @@ function printExportedSymbols(item: ImpactReportItem): void {
             classes,
             interfaces,
             types,
-            enums
+            enums,
+            variables
         } = item.analysis.exports;
 
         functions.forEach(f =>
@@ -246,6 +247,13 @@ function printExportedSymbols(item: ImpactReportItem): void {
             symbols.push({
                 name: e,
                 type: "enum"
+            })
+        );
+
+        variables.forEach(v =>
+            symbols.push({
+                name: v,
+                type: "variable"
             })
         );
     }
