@@ -6,6 +6,8 @@ import type { AssessmentResult } from "../assessment-result.interface.js";
 import type { ImpactReportItem } from "../impact-report-item.interface.js";
 import { isTestFile } from "../testing/test-mapping.js";
 import { colors, BOX_WIDTH } from "./colors.js";
+import { buildExportedSymbolsView, formatSymbolKind } from "./symbols-view.js";
+import { isImportOnlyUsage } from "../analyzer/usage-filter.js";
 
 function boxTop(label: string, color: string): void {
     console.log(`${color}╭─ ${label} ${"─".repeat(BOX_WIDTH - 5 - label.length)}╮${colors.reset}`);
@@ -203,60 +205,9 @@ function printFileSection(item: ImpactReportItem): void {
 }
 
 function printExportedSymbols(item: ImpactReportItem): void {
-    const symbols: { name: string; type: string }[] = [];
-
-    if (item.analysis) {
-        const {
-            functions,
-            classes,
-            interfaces,
-            types,
-            enums,
-            variables
-        } = item.analysis.exports;
-
-        functions.forEach(f =>
-            symbols.push({
-                name: f,
-                type: "function"
-            })
-        );
-
-        classes.forEach(c =>
-            symbols.push({
-                name: c.name,
-                type: `class, ${c.methods.length} methods`
-            })
-        );
-
-        interfaces.forEach(i =>
-            symbols.push({
-                name: i,
-                type: "interface"
-            })
-        );
-
-        types.forEach(t =>
-            symbols.push({
-                name: t,
-                type: "type"
-            })
-        );
-
-        enums.forEach(e =>
-            symbols.push({
-                name: e,
-                type: "enum"
-            })
-        );
-
-        variables.forEach(v =>
-            symbols.push({
-                name: v,
-                type: "variable"
-            })
-        );
-    }
+    const symbols = item.analysis
+        ? buildExportedSymbolsView(item.analysis)
+        : [];
 
     console.log("");
     console.log(
@@ -283,7 +234,7 @@ function printExportedSymbols(item: ImpactReportItem): void {
                     : ` ${colors.dim}(modified)${colors.reset}`
                 : "";
 
-            const modifiedMethods = wasModified && sym.type.startsWith("class")
+            const modifiedMethods = wasModified && sym.kind === "class"
                 ? item.modifiedClassMethods?.get(sym.name)
                 : undefined;
 
@@ -295,7 +246,7 @@ function printExportedSymbols(item: ImpactReportItem): void {
                 `    ${colors.gray}│${colors.reset}    ` +
                 `${colors.gray}${prefix}${colors.reset} ` +
                 `${marker}${colors.bold}${sym.name}${colors.reset} ` +
-                `${colors.dim}(${sym.type})${colors.reset}` +
+                `${colors.dim}(${formatSymbolKind(sym)})${colors.reset}` +
                 suffix +
                 methodSuffix
             );
@@ -331,7 +282,7 @@ function printDownstreamUsages(item: ImpactReportItem): void {
         for (const symImpact of item.symbolImpacts) {
             for (const consumer of symImpact.consumers) {
                 // Omit pure import lines to avoid repetitive visual noise
-                if (consumer.snippet.trim().startsWith("import ")) {
+                if (isImportOnlyUsage(consumer.snippet)) {
                     continue;
                 }
 

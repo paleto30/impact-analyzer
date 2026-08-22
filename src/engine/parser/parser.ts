@@ -3,11 +3,11 @@ import { Node } from "ts-morph";
 import { getProject } from "../project.js";
 import type { FileAnalysis } from "./file-analysis.interface.js";
 
-export function analyzeFile(filePath: string): FileAnalysis {
-    const project = getProject(process.cwd());
+export function analyzeFile(filePath: string, projectRoot: string = process.cwd()): FileAnalysis {
+    const project = getProject(projectRoot);
     const absolutePath = path.isAbsolute(filePath)
         ? filePath
-        : path.resolve(process.cwd(), filePath);
+        : path.resolve(projectRoot, filePath);
     const sourceFile = project.addSourceFileAtPath(absolutePath);
 
     // 1. Functions
