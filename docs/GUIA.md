@@ -1,5 +1,7 @@
 # Guía de Impact Analyzer
 
+> **🌐 [English](GUIDE.en.md) | Español**
+
 Guía para desarrolladores: qué hace la herramienta, cómo usarla y cómo interpretar sus reportes.
 
 ---
@@ -25,7 +27,7 @@ Para ello combina:
 ### Requisitos
 
 - Un repositorio Git local (la herramienta se ejecuta dentro de él).
-- Proyecto TypeScript/JavaScript con un `tsconfig.json`.
+- Proyecto TypeScript/JavaScript. El `tsconfig.json` en la raíz es opcional: si no existe (típico en monorepos), la herramienta hace *fallback* al escaneo de `src/**/*.ts`.
 
 ### Ejecución
 
@@ -232,5 +234,6 @@ Este bloque es informativo: el riesgo real NO se calcula sobre él, sino sobre l
 
 ## 6. Más información
 
-- [README.md](README.md) — descripción general del proyecto (también en [English](README.en.md)).
+- [README.md](../README.md) — descripción general del proyecto (también en [English](../README.en.md)).
+- [GUIDE.en.md](GUIDE.en.md) — versión en inglés de esta guía.
 - `test/fixtures/` — proyectos de ejemplo usados por la suite de tests (`npm test`).
