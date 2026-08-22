@@ -2,38 +2,110 @@
 
 > **🌐 [English](README.en.md) | Español**
 
-Herramienta CLI que analiza el impacto de tus cambios de código antes de hacer merge.
+**Analizador de blast radius para TypeScript y JavaScript.**
+
+ImpactWave es una CLI que analiza tus cambios en Git antes de hacer merge y responde una pregunta:
 
 > **"¿Qué puedo romper con este cambio y qué debería probar?"**
 
-📖 **¿Cómo se usa y cómo leer los reportes?** → [docs/GUIA.md](docs/GUIA.md) (guía completa para desarrolladores)
+---
 
-## Instalación y uso
+## El problema
+
+En un codebase real, un cambio "pequeño" puede romper cosas muy lejos del archivo editado. Los revisores lo detectan por intuición, los tests globales no te dicen *qué* probar primero, y el impacto real se descubre en producción.
+
+ImpactWave convierte esa intuición en datos: qué símbolos exportados tocaste físicamente, quién los consume de verdad, qué áreas afectadas quedan sin tests y cuánto riesgo acumula el cambio — con un score determinístico y razones explicables.
+
+## Qué hace
+
+Dado un rango de commits (`rama base → HEAD`), genera un reporte en consola con:
+
+- **Símbolos modificados** — funciones, clases, métodos públicos, interfaces, tipos… detectados vía AST ([ts-morph](https://ts-morph.com)), no texto plano: solo cuenta lo que el diff tocó físicamente.
+- **Consumidores reales** — cada uso activo de los símbolos modificados, con archivo, línea y snippet. Un `import` puro no ejecuta nada y no cuenta como impacto.
+- **Blast radius** — todos los archivos alcanzados a través del grafo de dependencias (incluye barrel files), agrupados por nivel de cascada.
+- **Cobertura de impacto** — qué porcentaje de las áreas afectadas está cubierto por tests, y la lista exacta de las que no.
+- **Risk score 0–100** — determinístico (misma entrada → mismo score) y explicable: cada punto viene acompañado de su razón.
+
+### ¿Qué es el blast radius?
+
+El *radio de explosión* es el conjunto de código que puede verse afectado cuando cambias un archivo: quienes lo importan directamente, quienes importan a esos, y así en cascada. Conocerlo antes del merge significa saber exactamente dónde mirar y qué tests ejecutar — no descubrirlo por un bug report.
+
+## Instalación
 
 ```bash
-npm install -g impactwave   # o: npx impactwave
+npm install -g impactwave   # o úsalo sin instalar:
+npx impactwave
 ```
 
-Ejecutar dentro de un repositorio Git:
+Requisitos: Node ≥ 22.12, un repositorio Git local y un proyecto TypeScript/JavaScript.
+
+## Uso
+
+Ejecútalo en la raíz de tu proyecto:
 
 ```bash
-cd my-project
+cd mi-proyecto
 impactwave
 ```
 
-> `analyze` es el comando por defecto: `impactwave` y `impactwave analyze` son equivalentes.
+> `analyze` es el comando por defecto: `impactwave` y `impactwave analyze` son equivalentes. Solo se analizan cambios **commiteados** (`base..HEAD`); el working tree sin commitear no entra en el análisis.
 
-Opciones:
+```text
+$ impactwave --help
+
+ImpactWave answers one question before you merge:
+
+  "What can I break with this change, and what should I test?"
+
+It combines your Git diff with AST analysis to find the exported symbols you
+modified, who really consumes them, whether tests cover the affected areas,
+and computes a deterministic risk score (0-100) with explainable reasons.
+
+Usage: impactwave [options] [command]
+
+Analyze the blast radius of your code changes before merging
+
+Options:
+  -V, --version      output the version number
+  -h, --help         display help for command
+
+Commands:
+  analyze [options]  Analyze changed code impact in this repository
+  help [command]     display help for command
+
+Documentation: https://github.com/paleto30/impactwave#readme
+
+Tip: running bare "impactwave" inside a Git repository is equivalent to
+"impactwave analyze". Run "impactwave analyze --help" for options and examples.
+```
+
+### Opciones
 
 | Opción | Descripción |
 |---|---|
 | `-b, --base <branch>` | Rama base a comparar (autodetección: `origin/HEAD` → `main`/`master` → `HEAD~1`) |
-| `--risk-weights <json>` | Pesos personalizados de los factores de riesgo, ej. `{"callerImpact":40,"testGaps":30}`. Propiedades configurables: `callerImpact`, `affectedFiles`, `dependencyDepth`, `testGaps`, `changeSize` (todas opcionales; las omitidas valen 0). Ver [docs/GUIA.md](docs/GUIA.md#21-pesos-configurables-del-riesgo) |
+| `--risk-weights <json>` | Pesos personalizados de los factores de riesgo. Ver [modelo de riesgo](#modelo-de-riesgo) |
 
-## Qué hace
+### Ejemplos
+
+```bash
+# HEAD contra la rama base autodetectada
+impactwave
+
+# Comparar contra una rama base explícita
+impactwave analyze -b main
+
+# Dar más peso a los huecos de cobertura de tests
+impactwave --risk-weights '{"callerImpact":30,"testGaps":35}'
+
+# Puntuar solo por consumidores directos de los símbolos modificados
+impactwave analyze --risk-weights '{"callerImpact":100}'
+```
+
+## Cómo funciona
 
 1. **Git**: detecta el repo, la rama base y los archivos modificados (A/M/D).
-2. **AST**: con ts-morph extrae exports e imports de los archivos cambiados, usando un único proyecto indexado con tu `tsconfig.json`. Si el repo no tiene tsconfig en la raíz (típico en monorepos), hace *fallback* al escaneo explícito de `src/**/*.ts`.
+2. **AST**: ts-morph extrae exports e imports de los archivos cambiados, usando un único proyecto indexado con tu `tsconfig.json`. Si el repo no tiene tsconfig en la raíz (típico en monorepos), hace *fallback* al escaneo explícito de `src/**/*.ts`.
 3. **Símbolos modificados**: intersecta los rangos de líneas de cada símbolo exportado con las líneas del diff.
 4. **Consumidores reales**: `findReferences` encuentra los usos activos de cada símbolo (los imports puros no cuentan como impacto).
 5. **Grafo de dependencias**: índice inverso y directo de imports relativos + recorrido transitivo (BFS) con profundidad.
@@ -54,11 +126,34 @@ Cinco factores con umbrales de saturación. Pesos por defecto (configurables con
 
 Niveles: `0-25 LOW · 26-50 MEDIUM · 51-75 HIGH · 76-100 CRITICAL`.
 
-Los nombres de los factores son las claves JSON de `--risk-weights` (todas opcionales).
+Los nombres de los factores son las claves JSON de `--risk-weights` (todas opcionales; las omitidas valen 0).
 
-## Reporte
+## El reporte
 
-El reporte incluye: contexto git, riesgo con score y razones (con puntos), **Impact Coverage** (áreas afectadas cubiertas por tests — los archivos de solo contratos de tipos no cuentan —, con las descubiertas listadas), y por cada archivo: símbolos exportados (marcando los modificados con ✏️, su conteo de líneas modificadas y, en clases, los métodos públicos concretos modificados), usos downstream con línea y snippet, blast radius con dirección explícita (`imported by ↓`: archivos que importan al modificado) y tests relacionados (✓/✗).
+Cada análisis imprime contexto Git, evaluación de riesgo con score y razones, cobertura de impacto, y por cada archivo cambiado: símbolos exportados (marcando los modificados), usos downstream con línea y snippet, blast radius en cascada y tests relacionados:
+
+```
+╭─ Risk Assessment ────────────────────────────────────────╮
+│ 🟡 MEDIUM RISK (score: 31/100)                           │
+│ Changes affect a few dependent modules. Verify them...   │
+│ 4 unique dependent files at risk                         │
+│ Reasons:                                                 │
+│   • 4 consumers of modified symbols (12 pts)             │
+│   • 4 affected files (transitive reach) (5 pts)          │
+│   • Impact reaches depth 1 dependency level (4 pts)      │
+│   • 1 affected area without detected tests (10 pts)      │
+│   • 1 line modified                                      │
+╰──────────────────────────────────────────────────────────╯
+```
+
+📖 **Cómo leer el reporte completo, sección por sección** → [docs/GUIA.md](docs/GUIA.md)
+
+## Limitaciones conocidas
+
+- Compara commits; los cambios sin commitear en el working tree no se analizan.
+- La cobertura de tests se basa en imports directos de los archivos de test (no transitiva).
+- El grafo solo considera imports relativos (no `node_modules` ni path aliases).
+- En monorepos, el análisis cubre `<raíz>/src/**/*.ts`; código fuera de `src/` no se analiza.
 
 ## Desarrollo
 
@@ -68,18 +163,10 @@ npm run build  # compilación a dist/
 npm run dev    # ejecutar en desarrollo
 ```
 
-Los fixtures en `test/fixtures/` validan el análisis contra proyectos artificiales:
-`simple-project` (cadena A→B→C), `circular-dependencies` (X↔Y) y `test-coverage` (servicios con y sin tests).
+Los fixtures en `test/fixtures/` validan el análisis contra proyectos artificiales: `simple-project` (cadena A→B→C), `circular-dependencies` (X↔Y), `barrel-exports` (re-exports por barrel) y `test-coverage` (servicios con y sin tests).
 
-## Estado del MVP
+Para contribuir: abre un [issue](https://github.com/paleto30/impactwave/issues) o envía un PR. Las mejoras candidatas están documentadas en [docs/ROADMAP.md](docs/ROADMAP.md) (salida JSON para CI, gate de merges, configuración por proyecto…).
 
-Completado según la propuesta (`ai-docs/impactwave-context.md`):
+## Licencia
 
-- ✅ Fase 1 — Git analysis
-- ✅ Fase 2 — AST analysis
-- ✅ Fase 3 — Dependency Graph
-- ✅ Fase 4 — Symbol-level impact
-- ✅ Fase 5 — Test mapping
-- ✅ Fase 6 — Risk engine (+ explicabilidad, coverage, fixtures y tests propios)
-
-Futuras fases (fuera del MVP): GitHub Action, capa de IA, extensión VS Code, historial Git.
+[ISC](LICENSE)

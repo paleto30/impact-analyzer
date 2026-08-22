@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Command } from "commander";
 import type { SimpleGit } from "simple-git";
 import { branchExists, detectBaseBranch, detectRepo, getChangedFiles, getModifiedLines } from "./engine/git/detect.js";
@@ -172,18 +175,84 @@ function collectChangedLines(changedFileAnalyses: Map<string, ChangedFileAnalysi
         .reduce((acc, file) => acc + file.modifiedLines.size, 0);
 }
 
+/**
+ * Single source of truth for the CLI version: package.json sits one level
+ * above this file both in src/ (dev, via tsx) and dist/ (published bin).
+ */
+const { version } = JSON.parse(
+    readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "package.json"), "utf8")
+) as { version: string };
+
 const program = new Command();
 
 program
     .name("impactwave")
-    .description("Analyze the impact of your code changes")
-    .version("1.0.0");
+    .description("Analyze the blast radius of your code changes before merging")
+    .version(version)
+    .addHelpText("before", `
+ImpactWave answers one question before you merge:
+
+  "What can I break with this change, and what should I test?"
+
+It combines your Git diff with AST analysis to find the exported symbols you
+modified, who really consumes them, whether tests cover the affected areas,
+and computes a deterministic risk score (0-100) with explainable reasons.
+`)
+    .addHelpText("after", `
+Documentation: https://github.com/paleto30/impactwave#readme
+
+Tip: running bare "impactwave" inside a Git repository is equivalent to
+"impactwave analyze". Run "impactwave analyze --help" for options and examples.`);
 
 program
     .command("analyze", { isDefault: true })
-    .description("Analyze current repository changes (default command: running without arguments analyzes HEAD vs the detected base branch)")
-    .option("-b, --base <branch>", "Base branch to compare against")
-    .option("--risk-weights <json>", "JSON with custom risk factor weights (e.g. {\"callerImpact\":40,\"testGaps\":30})")
+    .description("Analyze the impact of your committed changes in the current Git repository (default command)")
+    .summary("Analyze changed code impact in this repository")
+    .option(
+        "-b, --base <branch>",
+        "base branch or ref to compare HEAD against " +
+        '(default: auto-detected: origin/HEAD -> main/master -> HEAD~1)'
+    )
+    .option(
+        "--risk-weights <json>",
+        'JSON object with custom risk factor weights; omitted keys count as 0. ' +
+        "Valid keys: callerImpact, affectedFiles, dependencyDepth, testGaps, changeSize. " +
+        'Defaults: {"callerImpact":30, "affectedFiles":20, "dependencyDepth":15, "testGaps":20, "changeSize":15}'
+    )
+    .addHelpText("after", `
+Purpose:
+  Analyze what your current changes could break and what you should test,
+  before merging.
+
+How it works:
+  Compares HEAD against a base branch (git diff <base>..HEAD), finds which
+  exported symbols were physically modified, locates their real consumers,
+  traces the blast radius across the dependency graph and maps test coverage
+  over the affected areas. It ends in a risk assessment: a deterministic
+  score from 0 to 100 with explainable reasons.
+
+Default behavior:
+  - Without --base, the base branch is auto-detected:
+      origin/HEAD -> main/master -> HEAD~1 (with a warning on fallback).
+  - Only committed changes are analyzed; uncommitted working-tree edits are
+    not included.
+  - Prints a human-readable report to stdout and exits 0 unless there is a
+    usage error (e.g. unknown base branch or invalid --risk-weights JSON).
+
+Examples:
+  # Analyze HEAD vs the auto-detected base branch
+  $ impactwave
+
+  # Compare against an explicit base branch
+  $ impactwave analyze -b main
+
+  # Emphasize test coverage gaps in the score
+  $ impactwave --risk-weights '{"callerImpact":30,"testGaps":35}'
+
+  # Score only by direct consumers of modified symbols
+  $ impactwave analyze --risk-weights '{"callerImpact":100}'
+
+Full guide: https://github.com/paleto30/impactwave/blob/main/docs/GUIA.md`)
     .action(async (options) => {
 
         const git = await detectRepo();
