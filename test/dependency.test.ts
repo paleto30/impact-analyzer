@@ -6,6 +6,7 @@ import { buildDependencyGraph, findTransitiveDependents } from "../src/engine/gr
 const SIMPLE = path.resolve("test/fixtures/simple-project");
 const COVERAGE = path.resolve("test/fixtures/test-coverage");
 const CIRCULAR = path.resolve("test/fixtures/circular-dependencies");
+const BARREL = path.resolve("test/fixtures/barrel-exports");
 
 describe("dependency graph", () => {
     it("builds the A -> B -> C chain", () => {
@@ -29,6 +30,30 @@ describe("dependency graph", () => {
         assert.ok(consumers?.includes("payment/InvoiceService.ts"));
         assert.ok(consumers?.includes("payment/PaymentService.test.ts"));
         assert.ok(consumers?.includes("payment/CheckoutService.test.ts"));
+    });
+
+    it("treats barrel re-exports (export ... from) as edges", () => {
+        const graph = buildDependencyGraph(BARREL);
+        const barrelDependents = graph.dependents.get("index.ts") ?? [];
+        assert.ok(
+            barrelDependents.includes("checkout.controller.ts"),
+            "checkout.controller.ts imports through index.ts"
+        );
+    });
+
+    it("finds real consumers hidden behind a barrel file", () => {
+        const graph = buildDependencyGraph(BARREL);
+
+        const serviceDependents = graph.dependents.get("payment/payment.service.ts") ?? [];
+        assert.ok(serviceDependents.includes("index.ts"), "index.ts re-exports payment.service.ts");
+
+        const impact = findTransitiveDependents(graph, "payment/payment.service.ts");
+        assert.ok(
+            impact.files.includes("checkout.controller.ts"),
+            "controller must appear even though it only imports the barrel"
+        );
+        assert.equal(impact.depthMap.get("checkout.controller.ts"), 2);
+        assert.equal(impact.maxDepth, 2);
     });
 });
 

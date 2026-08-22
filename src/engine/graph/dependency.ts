@@ -19,15 +19,19 @@ export function buildDependencyGraph(projectRoot: string): DependencyGraph {
         const importedByThis = imports.get(filePath) ?? [];
         imports.set(filePath, importedByThis);
 
-        // Review each import this file makes
-        for (const importDecl of sourceFile.getImportDeclarations()) {
-            const moduleSpecifier = importDecl.getModuleSpecifierValue();
-
-            // Only relative imports matter (e.g. "./parser.js" or "../git/detect.js")
-            if (!moduleSpecifier.startsWith(".")) continue;
+        // Review each import and re-export this file makes. Re-exports
+        // ("export ... from") are what barrel files are made of; skipping
+        // them hides real consumers behind an index and produces false
+        // negatives in the blast radius.
+        for (const ref of [
+            ...sourceFile.getImportDeclarations(),
+            ...sourceFile.getExportDeclarations()
+        ]) {
+            const moduleSpecifier = ref.getModuleSpecifierValue();
+            if (!moduleSpecifier || !moduleSpecifier.startsWith(".")) continue;
 
             // Resolve the path of the imported file
-            const importedSourceFile = importDecl.getModuleSpecifierSourceFile();
+            const importedSourceFile = ref.getModuleSpecifierSourceFile();
             if (!importedSourceFile) continue;
 
             const importedPath = path.relative(projectRoot, importedSourceFile.getFilePath());

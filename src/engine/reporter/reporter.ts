@@ -373,16 +373,53 @@ function printBlastRadius(item: ImpactReportItem): void {
             `${colors.dim}${reachSummary}${colors.reset}`
         );
 
-        dependents.forEach((dep, index) => {
-            const isLast = index === dependents.length - 1;
-            const prefix = isLast ? "└─" : "├─";
+        const depthMap = transitive?.depthMap;
+        const maxDepth = transitive?.maxDepth ?? 1;
 
-            console.log(
-                `    ${colors.gray}│${colors.reset}    ` +
-                `${colors.gray}${prefix}${colors.reset} ` +
-                `${colors.cyan}${dep}${colors.reset}`
-            );
-        });
+        if (!depthMap || maxDepth <= 1) {
+            // Flat list: every dependent is a direct consumer
+            dependents.forEach((dep, index) => {
+                const isLast = index === dependents.length - 1;
+                const prefix = isLast ? "└─" : "├─";
+
+                console.log(
+                    `    ${colors.gray}│${colors.reset}    ` +
+                    `${colors.gray}${prefix}${colors.reset} ` +
+                    `${colors.cyan}${dep}${colors.reset}`
+                );
+            });
+        } else {
+            // Cascade tree grouped by level: L1 imports the changed file,
+            // L2 imports L1, and so on (§13 Level cascade)
+            for (let level = 1; level <= maxDepth; level++) {
+                const filesAtLevel = Array.from(depthMap.entries())
+                    .filter(([, depth]) => depth === level)
+                    .map(([file]) => file)
+                    .sort();
+
+                const isLastLevel = level === maxDepth;
+                const levelPrefix = isLastLevel ? "└─" : "├─";
+                const childIndent = isLastLevel ? "      " : "│     ";
+
+                console.log(
+                    `    ${colors.gray}│${colors.reset}    ` +
+                    `${colors.gray}${levelPrefix}${colors.reset} ` +
+                    `${colors.dim}Level ${level}${colors.reset}`
+                );
+
+                filesAtLevel.forEach((file, index) => {
+                    const isLastFile = index === filesAtLevel.length - 1;
+                    const filePrefix = isLastFile ? "└─" : "├─";
+
+                    console.log(
+                        `    ${colors.gray}│${colors.reset}    ${colors.gray}${childIndent}` +
+                        `${colors.reset}` +
+                        `${colors.gray}${filePrefix}${colors.reset} ` +
+                        `${colors.cyan}${file}${colors.reset}`
+                    );
+                });
+            }
+        }
     } else {
         console.log(
             `    ${colors.gray}├─${colors.reset} ` +

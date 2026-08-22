@@ -153,7 +153,7 @@ Ejemplo real: se modificó `PaymentService.calculate()` (cambio de tasa 0.19 →
 
 ```
     ├─ Exported symbols
-    │    └─ ✏️  PaymentService (class, 1 methods) (2 lines modified) (calculate method modified)
+    │    └─ ✏️  PaymentService (class, 1 method) (2 lines modified) (calculate method modified)
     │    └─ Invoice (interface)
 ```
 **Símbolos exportados** — lo que el archivo expone al resto del proyecto. Para cada símbolo tocado por el diff:
@@ -167,16 +167,25 @@ Los símbolos sin ✏️ existen en el archivo pero no fueron tocados por este c
 ```
     ├─ Detailed Downstream Usages
     │    ├─ 📂 Affected File: payment/CheckoutService.ts
-    │         └─ 🔸 Target Symbol: PaymentService (Line 4)
-    │                💻 Code snippet : "constructor(...paymentService: PaymentService) {}"
+    │         ├─ 🔸 Target Symbol: PaymentService (Line 4)
+    │         │        💻 Code snippet : "constructor(...paymentService: PaymentService) {}"
+    │         └─ 🔸 Target Symbol: PaymentService.calculate (Line 7)
+    │                💻 Code snippet : "return this.paymentService.calculate(amount);"
 ```
 **Usos downstream** — los consumidores **activos** del símbolo modificado, con el archivo, la línea y el snippet del uso. Útil para auditar cada punto de contacto del cambio. Las líneas de `import` puro se omiten (un import no ejecuta nada).
 
+Hay dos niveles de granularidad: `PaymentService` lista las referencias a la **clase** (inyección por constructor, anotaciones de tipo) y `PaymentService.calculate` lista los **call sites del método modificado concreto** (`service.calculate(...)`). Los re-exports de barrel files (`export { X } from`) también cuentan como aristas: el consumidor real aparece aunque importe solo por el `index.ts`.
+
 ```
-    ├─ Files in blast radius (imported by ↓) (1 direct, 1 total, depth 1)
-    │    └─ payment/CheckoutService.ts
+    ├─ Files in blast radius (imported by ↓) (1 direct, 3 total, depth 3)
+    │    ├─ Level 1
+    │    │     └─ payment/index.ts
+    │    ├─ Level 2
+    │    │     └─ checkout/CheckoutService.ts
+    │    └─ Level 3
+    │          └─ app.controller.ts
 ```
-**Blast radius** — todos los archivos que **importan al archivo cambiado** (`imported by ↓` marca la dirección: estos archivos consumen lo que este archivo exporta, no al revés). Es dependencia **estática/posible**: si hay alcance transitivo aparece como `(X direct, Y total, depth Z)`.
+**Blast radius** — todos los archivos que **importan al archivo cambiado** (`imported by ↓` marca la dirección: estos archivos consumen lo que este archivo exporta, no al revés). Es dependencia **estática/posible**: si hay alcance transitivo aparece como `(X direct, Y total, depth Z)` y los archivos se agrupan por **nivel de cascada**: `Level 1` importa directamente al archivo cambiado, `Level 2` importa a alguien de `Level 1`, y así sucesivamente.
 
 Este bloque es informativo: el riesgo real NO se calcula sobre él, sino sobre los usos reales de símbolos (bloque anterior).
 

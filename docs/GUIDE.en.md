@@ -153,7 +153,7 @@ Real example: `PaymentService.calculate()` was modified (rate change 0.19 → 0.
 
 ```
     ├─ Exported symbols
-    │    └─ ✏️  PaymentService (class, 1 methods) (2 lines modified) (calculate method modified)
+    │    └─ ✏️  PaymentService (class, 1 method) (2 lines modified) (calculate method modified)
     │    └─ Invoice (interface)
 ```
 **Exported symbols** — what the file exposes to the rest of the project. For each symbol touched by the diff:
@@ -167,16 +167,25 @@ Symbols without ✏️ exist in the file but were not touched by this change.
 ```
     ├─ Detailed Downstream Usages
     │    ├─ 📂 Affected File: payment/CheckoutService.ts
-    │         └─ 🔸 Target Symbol: PaymentService (Line 4)
-    │                💻 Code snippet : "constructor(...paymentService: PaymentService) {}"
+    │         ├─ 🔸 Target Symbol: PaymentService (Line 4)
+    │         │        💻 Code snippet : "constructor(...paymentService: PaymentService) {}"
+    │         └─ 🔸 Target Symbol: PaymentService.calculate (Line 7)
+    │                💻 Code snippet : "return this.paymentService.calculate(amount);"
 ```
 **Downstream usages** — the **active** consumers of the modified symbol, with file, line and usage snippet. Useful for auditing every touch point of the change. Pure `import` lines are omitted (an import executes nothing).
 
+Two granularity levels are shown: `PaymentService` lists references to the **class** (constructor injection, type annotations) and `PaymentService.calculate` lists the **call sites of the specific modified method** (`service.calculate(...)`). Barrel file re-exports (`export { X } from`) also count as edges: the real consumer appears even when it imports only through an `index.ts`.
+
 ```
-    ├─ Files in blast radius (imported by ↓) (1 direct, 1 total, depth 1)
-    │    └─ payment/CheckoutService.ts
+    ├─ Files in blast radius (imported by ↓) (1 direct, 3 total, depth 3)
+    │    ├─ Level 1
+    │    │     └─ payment/index.ts
+    │    ├─ Level 2
+    │    │     └─ checkout/CheckoutService.ts
+    │    └─ Level 3
+    │          └─ app.controller.ts
 ```
-**Blast radius** — all files that **import the changed file** (`imported by ↓` marks the direction: these files consume what this file exports, not the other way around). It is **static/potential** dependency: transitive reach appears as `(X direct, Y total, depth Z)`.
+**Blast radius** — all files that **import the changed file** (`imported by ↓` marks the direction: these files consume what this file exports, not the other way around). It is **static/potential** dependency: transitive reach appears as `(X direct, Y total, depth Z)` and files are grouped by **cascade level**: `Level 1` imports the changed file directly, `Level 2` imports someone from `Level 1`, and so on.
 
 This block is informational: real risk is NOT computed from it, but from real symbol usages (previous block).
 

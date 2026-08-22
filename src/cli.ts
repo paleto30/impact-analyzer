@@ -126,13 +126,20 @@ async function collectChangedFileAnalyses(
             )
             : [];
 
+        // Class-level references miss call sites like "service.calculate()";
+        // method-level impacts add the consumers of each modified method.
+        const methodImpacts = symbolAnalyzer.getModifiedMethodImpacts(
+            file.path,
+            modifiedClassMethods
+        );
+
         changedFileAnalyses.set(file.path, {
             analysis,
             modifiedLines,
             modifiedSymbols,
             modifiedSymbolLineCounts,
             modifiedClassMethods,
-            symbolImpacts
+            symbolImpacts: [...symbolImpacts, ...methodImpacts]
         });
     }
 

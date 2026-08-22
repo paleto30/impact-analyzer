@@ -1,5 +1,5 @@
 import path from "node:path";
-import { type Project, type SourceFile, type Node, InterfaceDeclaration, TypeAliasDeclaration, ClassDeclaration, FunctionDeclaration, EnumDeclaration, VariableDeclaration, Scope } from "ts-morph";
+import { type Project, type SourceFile, type Node, type ReferencedSymbol, InterfaceDeclaration, TypeAliasDeclaration, ClassDeclaration, FunctionDeclaration, EnumDeclaration, VariableDeclaration, Scope } from "ts-morph";
 import { getProject } from "../project.js";
 import type { SymbolImpact } from "./symbol-impact.interface.js";
 import type { FileAnalysis } from "../parser/file-analysis.interface.js";
@@ -11,6 +11,10 @@ type ExportableNode =
     | FunctionDeclaration
     | EnumDeclaration
     | VariableDeclaration;
+
+type ReferenceableNode = {
+    findReferences(): ReferencedSymbol[];
+};
 
 function rangeIntersectsModifiedLines(
     startLine: number,
@@ -179,6 +183,39 @@ export class SymbolAnalyzer {
         return modifiedMethods;
     }
 
+    /**
+     * Collects the real usages of a referenceable node (class, function,
+     * method...) across the project: file, line and source snippet of every
+     * non-definition reference, deduplicated by position.
+     */
+    private collectConsumers(referenceable: ReferenceableNode): SymbolImpact["consumers"] {
+        const consumersMap = new Map<string, { filePath: string; line: number; snippet: string }>();
+
+        for (const ref of referenceable.findReferences()) {
+            for (const refNode of ref.getReferences()) {
+                const refSourceFile = refNode.getSourceFile();
+                const refFilePath = path.relative(this.projectRoot, refSourceFile.getFilePath());
+
+                if (refNode.isDefinition()) continue;
+
+                const pos = refNode.getNode().getStart();
+                const line = refSourceFile.getLineAndColumnAtPos(pos).line;
+                const snippet = refSourceFile.getFullText().split('\n')[line - 1]?.trim() || '';
+
+                const key = `${refFilePath}:${line}`;
+                if (!consumersMap.has(key)) {
+                    consumersMap.set(key, {
+                        filePath: refFilePath,
+                        line,
+                        snippet
+                    });
+                }
+            }
+        }
+
+        return Array.from(consumersMap.values());
+    }
+
     public analyzeSymbolImpact(
         relativePath: string,
         symbolNames: string[],
@@ -207,36 +244,50 @@ export class SymbolAnalyzer {
                 }
             }
 
-            const consumersMap = new Map<string, { filePath: string; line: number; snippet: string }>();
-            const referencedSymbols = exportNode.findReferences();
-
-            for (const ref of referencedSymbols) {
-                for (const refNode of ref.getReferences()) {
-                    const refSourceFile = refNode.getSourceFile();
-                    const refFilePath = path.relative(this.projectRoot, refSourceFile.getFilePath());
-
-                    if (refNode.isDefinition()) continue;
-
-                    const pos = refNode.getNode().getStart();
-                    const line = refSourceFile.getLineAndColumnAtPos(pos).line;
-                    const snippet = refSourceFile.getFullText().split('\n')[line - 1]?.trim() || '';
-
-                    const key = `${refFilePath}:${line}`;
-                    if (!consumersMap.has(key)) {
-                        consumersMap.set(key, {
-                            filePath: refFilePath,
-                            line,
-                            snippet
-                        });
-                    }
-                }
-            }
-
             impacts.push({
                 symbolName: symbolName,
                 filePath: relativePath,
-                consumers: Array.from(consumersMap.values())
+                consumers: this.collectConsumers(exportNode)
             });
+        }
+
+        return impacts;
+    }
+
+    /**
+     * Finds the consumers of each specific modified class method (not the
+     * whole class). Class-level references (constructor injection, type
+     * annotations) do not include call sites like "service.calculate()";
+     * resolving references on the MethodDeclaration itself is what reveals
+     * them, enabling the method-level cascade described in §12-13.
+     */
+    public getModifiedMethodImpacts(
+        relativePath: string,
+        modifiedClassMethods: Map<string, string[]>
+    ): SymbolImpact[] {
+        const absolutePath = path.resolve(this.projectRoot, relativePath);
+        const sourceFile = this.project.getSourceFile(absolutePath);
+
+        if (!sourceFile || modifiedClassMethods.size === 0) {
+            return [];
+        }
+
+        const impacts: SymbolImpact[] = [];
+
+        for (const [className, methodNames] of modifiedClassMethods) {
+            const classDeclaration = sourceFile.getClass(className);
+            if (!classDeclaration) continue;
+
+            for (const methodName of methodNames) {
+                const method = classDeclaration.getMethod(methodName);
+                if (!method) continue;
+
+                impacts.push({
+                    symbolName: `${className}.${methodName}`,
+                    filePath: relativePath,
+                    consumers: this.collectConsumers(method)
+                });
+            }
         }
 
         return impacts;

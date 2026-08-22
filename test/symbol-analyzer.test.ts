@@ -123,4 +123,55 @@ describe("SymbolAnalyzer", () => {
             );
         });
     });
+
+    describe("getModifiedMethodImpacts", () => {
+        const coverageAnalyzer = new SymbolAnalyzer(COVERAGE);
+
+        it("finds call sites of the specific modified method", () => {
+            const impacts = coverageAnalyzer.getModifiedMethodImpacts(
+                "payment/PaymentService.ts",
+                new Map([["PaymentService", ["calculate"]]])
+            );
+
+            assert.equal(impacts.length, 1);
+            assert.equal(impacts[0]?.symbolName, "PaymentService.calculate");
+
+            const consumers = impacts[0]?.consumers ?? [];
+            const checkoutConsumer = consumers.find(
+                c => c.filePath === "payment/CheckoutService.ts"
+            );
+            assert.ok(checkoutConsumer, "CheckoutService must appear as method consumer");
+            assert.ok(
+                checkoutConsumer.snippet.includes("calculate"),
+                `snippet should contain the calculate call: ${checkoutConsumer?.snippet}`
+            );
+        });
+
+        it("returns empty for an empty modified-methods map", () => {
+            assert.deepEqual(
+                coverageAnalyzer.getModifiedMethodImpacts(
+                    "payment/PaymentService.ts",
+                    new Map()
+                ),
+                []
+            );
+        });
+
+        it("ignores classes or methods that do not exist", () => {
+            assert.deepEqual(
+                coverageAnalyzer.getModifiedMethodImpacts(
+                    "payment/PaymentService.ts",
+                    new Map([["MissingService", ["calculate"]]])
+                ),
+                []
+            );
+            assert.deepEqual(
+                coverageAnalyzer.getModifiedMethodImpacts(
+                    "payment/PaymentService.ts",
+                    new Map([["PaymentService", ["missingMethod"]]])
+                ),
+                []
+            );
+        });
+    });
 });

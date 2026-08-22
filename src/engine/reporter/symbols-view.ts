@@ -59,7 +59,7 @@ export function buildExportedSymbolsView(analysis: FileAnalysis): ExportedSymbol
  * Display label for a symbol, e.g. "function" or "class, 3 methods".
  */
 export function formatSymbolKind(symbol: ExportedSymbolView): string {
-    return symbol.kind === "class"
-        ? `class, ${symbol.methodCount} methods`
-        : symbol.kind;
+    if (symbol.kind !== "class") return symbol.kind;
+    const count = symbol.methodCount ?? 0;
+    return `class, ${count} ${count === 1 ? "method" : "methods"}`;
 }
