@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
@@ -27,7 +27,9 @@ export function createGitRepo(files: Record<string, string> = {}): GitRepoFixtur
         writeFileSync(path.join(dir, "README.md"), "fixture");
     }
     for (const [name, content] of entries) {
-        writeFileSync(path.join(dir, name), content);
+        const filePath = path.join(dir, name);
+        mkdirSync(path.dirname(filePath), { recursive: true });
+        writeFileSync(filePath, content);
     }
 
     git(dir, "add", "-A");

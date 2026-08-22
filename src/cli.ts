@@ -17,6 +17,8 @@ interface ChangedFileAnalysis {
     analysis: FileAnalysis;
     modifiedLines: Set<number>;
     modifiedSymbols: Set<string>;
+    modifiedSymbolLineCounts?: Map<string, number>;
+    modifiedClassMethods?: Map<string, string[]>;
     symbolImpacts: SymbolImpact[];
 }
 
@@ -88,6 +90,20 @@ program
                     modifiedLines
                 );
 
+                // 4.1b How many lines were modified per symbol
+                const modifiedSymbolLineCounts = symbolAnalyzer.getModifiedSymbolLineCounts(
+                    file.path,
+                    exportedSymbols,
+                    modifiedLines
+                );
+
+                // 4.1c Which methods were modified per class
+                const modifiedClassMethods = symbolAnalyzer.getModifiedClassMethods(
+                    file.path,
+                    analysis,
+                    modifiedLines
+                );
+
                 // 4.2 KEY FILTER: only analyze the impact if at least one symbol changed
                 const symbolImpacts = modifiedSymbols.size > 0
                     ? symbolAnalyzer.analyzeSymbolImpact(
@@ -101,6 +117,8 @@ program
                     analysis,
                     modifiedLines,
                     modifiedSymbols,
+                    modifiedSymbolLineCounts,
+                    modifiedClassMethods,
                     symbolImpacts
                 });
             } catch (error) {
@@ -120,6 +138,8 @@ program
             const changed = changedFileAnalyses.get(item.file.path);
             item.symbolImpacts = changed?.symbolImpacts ?? [];
             item.modifiedSymbolNames = changed?.modifiedSymbols ?? new Set<string>();
+            item.modifiedSymbolLineCounts = changed?.modifiedSymbolLineCounts ?? new Map();
+            item.modifiedClassMethods = changed?.modifiedClassMethods ?? new Map();
             item.relatedTests = testMapping.coverage.get(item.file.path) ?? [];
         });
 

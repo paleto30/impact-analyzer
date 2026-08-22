@@ -11,5 +11,7 @@ export interface ImpactReportItem {
     transitiveImpact?: TransitiveImpact;
     symbolImpacts?: SymbolImpact[];
     modifiedSymbolNames?: Set<string>;
+    modifiedSymbolLineCounts?: Map<string, number>;
+    modifiedClassMethods?: Map<string, string[]>; // className -> [methodName1, methodName2, ...]
     relatedTests?: string[];
 }

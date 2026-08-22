@@ -71,7 +71,7 @@ describe("CLI integration", () => {
         assert.match(output, /3 lines modified\s*$/m);
 
         // Unified blast radius format (direct/total/depth) with the consumer listed
-        assert.match(output, /Files in blast radius \(1 direct, 1 total, depth 1\)/);
+        assert.match(output, /Files in blast radius \(imported by ↓\) \(1 direct, 1 total, depth 1\)/);
         assert.match(output, /A\.ts/);
 
         // Coverage: one affected area (A.ts) without any test
@@ -91,5 +91,96 @@ describe("CLI integration", () => {
         assert.equal(result.status, 0, result.stderr);
         // 1 consumer saturates 10% of callerImpact=100 -> 10 pts
         assert.match(result.stdout, /LOW RISK \(score: 10\/100\)/);
+    });
+});
+
+describe("CLI integration without a root tsconfig.json", () => {
+    let repo: GitRepoFixture;
+
+    before(() => {
+        // Monorepo-style workspace: no tsconfig at the root. getProject must
+        // fall back to an explicit scan instead of crashing with
+        // FileNotFoundError.
+        repo = createGitRepo({
+            "src/greet.ts": 'export function greet(name: string): string {\n    return `Hello ${name}`;\n}\n',
+            "src/main.ts": 'import { greet } from "./greet.js";\n\nconsole.log(greet("world"));\n'
+        });
+
+        writeFileSync(
+            path.join(repo.dir, "src/greet.ts"),
+            'export function greet(name: string): string {\n    const greeting = `Hello ${name}`;\n    return greeting;\n}\n'
+        );
+        git(repo.dir, "add", "-A");
+        git(repo.dir, "commit", "-q", "-m", "change greet");
+    });
+
+    after(() => repo.cleanup());
+
+    it("does not crash and detects modified symbols", () => {
+        const result = runCli(repo.dir, ["analyze", "-b", "HEAD~1"]);
+        assert.equal(result.status, 0, result.stderr);
+
+        const output = result.stdout;
+        assert.doesNotMatch(result.stderr, /FileNotFoundError/);
+        // The CLI no longer crashes when there is no root tsconfig.json.
+        // The modified symbol is detected and its line count is displayed.
+        assert.match(output, /greet.*\(function\)/);
+        assert.match(output, /2 lines modified/);
+    });
+});
+
+describe("CLI integration: modified class methods", () => {
+    let repo: GitRepoFixture;
+
+    before(() => {
+        // A class with two public methods and one private method. Only the
+        // public suma() is modified after the base commit: the report must
+        // name the concrete modified method and skip the private one.
+        const calcTs = [
+            "export class Calculadora {",
+            "    suma(a: number, b: number): number {",
+            "        return a + b;",
+            "    }",
+            "",
+            "    resta(a: number, b: number): number {",
+            "        return a - b;",
+            "    }",
+            "",
+            "    private logInterno(msg: string): void {",
+            "        console.log(msg);",
+            "    }",
+            "}",
+            ""
+        ].join("\n");
+
+        repo = createGitRepo({
+            "src/calc.ts": calcTs,
+            "src/main.ts": 'import { Calculadora } from "./calc.js";\n\nconsole.log(new Calculadora().suma(2, 3));\n',
+            "tsconfig.json": '{ "compilerOptions": { "target": "ES2020", "module": "commonjs" } }\n'
+        });
+
+        writeFileSync(
+            path.join(repo.dir, "src/calc.ts"),
+            calcTs.replace("return a + b;", "return a + b + 0.0001;")
+        );
+        git(repo.dir, "add", "-A");
+        git(repo.dir, "commit", "-q", "-m", "modify suma");
+    });
+
+    after(() => repo.cleanup());
+
+    it("reports the specific modified method of each class", () => {
+        const result = runCli(repo.dir, ["analyze", "-b", "HEAD~1"]);
+        assert.equal(result.status, 0, result.stderr);
+
+        const output = result.stdout;
+        assert.match(output, /Calculadora \(class.*modified\)/);
+        assert.match(output, /\(suma method modified\)/);
+    });
+
+    it("does not report private methods as modified", () => {
+        const result = runCli(repo.dir, ["analyze", "-b", "HEAD~1"]);
+        const output = result.stdout;
+        assert.doesNotMatch(output, /logInterno/);
     });
 });

@@ -163,7 +163,7 @@ function printImpactCoverage(impactCoverage: ImpactCoverage): void {
             `${colors.blue}│${colors.reset}`
         );
         console.log(
-            `${colors.blue}│${colors.reset} ${colors.red}${colors.bold}Uncovered:${colors.reset}`
+            `${colors.blue}│${colors.reset} ${colors.red}${colors.bold}Uncovered:${colors.reset} (The affected files without tests — are exactly what you should test.)`
         );
         impactCoverage.uncoveredFiles.forEach(file => {
             console.log(
@@ -272,12 +272,23 @@ function printExportedSymbols(item: ImpactReportItem): void {
             const wasModified =
                 item.modifiedSymbolNames?.has(sym.name) ?? false;
 
+            const lineCount = item.modifiedSymbolLineCounts?.get(sym.name);
             const marker = wasModified
                 ? `${colors.yellow}✏️  `
                 : "";
 
             const suffix = wasModified
-                ? ` ${colors.dim}(modified)${colors.reset}`
+                ? lineCount !== undefined && lineCount > 0
+                    ? ` ${colors.dim}(${lineCount} ${lineCount === 1 ? "line" : "lines"} modified)${colors.reset}`
+                    : ` ${colors.dim}(modified)${colors.reset}`
+                : "";
+
+            const modifiedMethods = wasModified && sym.type.startsWith("class")
+                ? item.modifiedClassMethods?.get(sym.name)
+                : undefined;
+
+            const methodSuffix = modifiedMethods && modifiedMethods.length > 0
+                ? ` ${colors.yellow}(${modifiedMethods.join(", ")} ${modifiedMethods.length === 1 ? "method" : "methods"} modified)${colors.reset}`
                 : "";
 
             console.log(
@@ -285,7 +296,8 @@ function printExportedSymbols(item: ImpactReportItem): void {
                 `${colors.gray}${prefix}${colors.reset} ` +
                 `${marker}${colors.bold}${sym.name}${colors.reset} ` +
                 `${colors.dim}(${sym.type})${colors.reset}` +
-                suffix
+                suffix +
+                methodSuffix
             );
         });
     } else {
@@ -405,7 +417,8 @@ function printBlastRadius(item: ImpactReportItem): void {
 
         console.log(
             `    ${colors.gray}├─${colors.reset} ` +
-            `${colors.bold}Files in blast radius${colors.reset}` +
+            `${colors.bold}Files in blast radius${colors.reset} ` +
+            `${colors.dim}(imported by ↓)${colors.reset}` +
             `${colors.dim}${reachSummary}${colors.reset}`
         );
 
@@ -422,7 +435,8 @@ function printBlastRadius(item: ImpactReportItem): void {
     } else {
         console.log(
             `    ${colors.gray}├─${colors.reset} ` +
-            `${colors.green}Files in blast radius: None (Isolated change)${colors.reset}`
+            `${colors.green}Files in blast radius: None (Isolated change)${colors.reset}` +
+            `${colors.dim}(imported by ↓)${colors.reset}`
         );
     }
 }

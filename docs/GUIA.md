@@ -164,13 +164,14 @@ Ejemplo real: se modificó `PaymentService.calculate()` (cambio de tasa 0.19 →
 **Usos downstream** — los consumidores **activos** del símbolo modificado, con el archivo, la línea y el snippet del uso. Útil para auditar cada punto de contacto del cambio. Las líneas de `import` puro se omiten (un import no ejecuta nada).
 
 ```
-    ├─ Files in blast radius (4)
-    │    ├─ payment/CheckoutService.test.ts
-    │    ├─ payment/CheckoutService.ts
-    │    ├─ payment/InvoiceService.ts
-    │    └─ payment/PaymentService.test.ts
+    ├─ Files in blast radius (imported by ↓) (1 direct, 1 total, depth 1)
+    │    └─ payment/CheckoutService.ts
 ```
-**Blast radius** — todos los archivos que importan al archivo cambiado (dependencia **estática/posible**). Si hay impacto transitivo aparece como `(X direct, Y total, depth Z)`. Este bloque es informativo: el riesgo real NO se calcula sobre él, sino sobre los usos reales de símbolos.
+**Blast radius** — todos los archivos que **importan al archivo cambiado** (`imported by ↓` marca la dirección: estos archivos consumen lo que este archivo exporta, no al revés). Es dependencia **estática/posible**: si hay alcance transitivo aparece como `(X direct, Y total, depth Z)`.
+
+Este bloque es informativo: el riesgo real NO se calcula sobre él, sino sobre los usos reales de símbolos (bloque anterior).
+
+> **Nota sobre ciclos**: si dos archivos se importan mutuamente (ej. un controller que importa el service para inyectarlo, y el service que importa DTOs/interfaces declarados dentro del controller), cada tarjeta listará a la otra en su blast radius — ambas entradas son correctas. Para eliminar ese ruido, extrae los tipos compartidos a un archivo propio (ej. `withdraws.dto.ts`).
 
 ```
     └─ Related Tests
@@ -205,9 +206,12 @@ Ejemplo real: se modificó `PaymentService.calculate()` (cambio de tasa 0.19 →
 | Señal | Qué significa |
 |---|---|
 | ✏️ `(modified)` en un símbolo | El símbolo fue tocado por el diff |
+| `(N lines modified)` en un símbolo | Cuántas líneas del diff caen dentro de su declaración |
+| `(metodo1, metodo2 methods modified)` | Métodos concretos de la clase tocados por el diff (solo métodos públicos) |
 | `score` alto + `CRITICAL` | Cambio en código muy consumido, con poca cobertura o gran profundidad |
 | `Impact coverage` bajo | Las áreas afectadas no están cubiertas por tests — el riesgo real puede ser mayor que el score global |
 | Archivo en "Uncovered" | Área afectada sin tests → candidato a escribir tests |
+| `Blast radius (imported by ↓)` | Los archivos listados importan al cambiado; si tu archivo también los importa, es un ciclo |
 | `Blast radius (X direct, Y total, depth Z)` | La dependencia se propaga en cascada (Z niveles) |
 | "No impacted consumers detected" | Cambio sin consumidores → riesgo bajo por defecto |
 
@@ -216,7 +220,8 @@ Ejemplo real: se modificó `PaymentService.calculate()` (cambio de tasa 0.19 →
 - Compara commits; los cambios **sin commitear** en el working tree no se analizan.
 - La cobertura de tests se basa en imports **directos** de los archivos de test (no transitiva).
 - El grafo solo considera imports relativos (no `node_modules` ni path aliases no relativos).
-- La granularidad de "símbolo modificado" es la declaración top-level (un cambio en un método marca toda la clase).
+- La granularidad de "símbolo modificado" es la declaración top-level; dentro de clases, el reporte indica además los métodos públicos concretos modificados (los privados/protegidos no se reportan).
+- **En monorepos**: el análisis cubre siempre `<raíz>/src/**/*.ts`. Si el proyecto tiene código fuera de `src/` (ej. `packages/`, `app/`, tsconfigs por workspace), esos archivos no se cargan y sus símbolos no aparecen en el reporte. El soporte completo de monorepos (múltiples tsconfigs y directorios arbitrarios) está planificado en `ROADMAP.md` como mejora futura, fuera del alcance del MVP.
 
 ## 6. Más información
 
