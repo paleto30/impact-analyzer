@@ -33,10 +33,11 @@ Para ello combina:
 
 ```bash
 # En la raíz del proyecto a analizar:
-impact-analyzer analyze
+impact-analyzer
 
+# `analyze` es el comando por defecto: ambas formas son equivalentes.
 # En desarrollo (desde el repo de la herramienta):
-npm run dev -- analyze
+npm run dev
 ```
 
 ### Opciones
@@ -75,10 +76,10 @@ npm run dev -- analyze
 
 ```bash
 # Mismo riesgo para el proyecto, pero enfatizando la cobertura de tests:
-impact-analyzer analyze --risk-weights '{"callerImpact":30,"affectedFiles":10,"dependencyDepth":10,"testGaps":35,"changeSize":15}'
+impact-analyzer --risk-weights '{"callerImpact":30,"affectedFiles":10,"dependencyDepth":10,"testGaps":35,"changeSize":15}'
 
 # Solo interesan los consumidores (el resto de factores queda en 0):
-impact-analyzer analyze --risk-weights '{"callerImpact":100}'
+impact-analyzer --risk-weights '{"callerImpact":100}'
 ```
 
 ### Qué compara

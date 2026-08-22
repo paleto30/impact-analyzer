@@ -18,8 +18,10 @@ Ejecutar dentro de un repositorio Git:
 
 ```bash
 cd my-project
-impact-analyzer analyze
+impact-analyzer
 ```
+
+> `analyze` es el comando por defecto: `impact-analyzer` y `impact-analyzer analyze` son equivalentes.
 
 Opciones:
 
@@ -63,7 +65,7 @@ El reporte incluye: contexto git, riesgo con score y razones (con puntos), **Imp
 ```bash
 npm test       # suite de tests (node:test)
 npm run build  # compilación a dist/
-npm run dev -- analyze  # ejecutar en desarrollo
+npm run dev    # ejecutar en desarrollo
 ```
 
 Los fixtures en `test/fixtures/` validan el análisis contra proyectos artificiales:

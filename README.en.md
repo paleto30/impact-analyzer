@@ -18,8 +18,10 @@ Run inside a Git repository:
 
 ```bash
 cd my-project
-impact-analyzer analyze
+impact-analyzer
 ```
+
+> `analyze` is the default command: `impact-analyzer` and `impact-analyzer analyze` are equivalent.
 
 Options:
 
@@ -63,7 +65,7 @@ The report includes: Git context, risk with score and reasons (with points), **I
 ```bash
 npm test       # test suite (node:test)
 npm run build  # compile to dist/
-npm run dev -- analyze  # run in development
+npm run dev    # run in development
 ```
 
 Fixtures in `test/fixtures/` validate the analysis against artificial projects:

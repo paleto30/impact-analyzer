@@ -79,8 +79,12 @@ describe("CLI error handling", () => {
     });
 
     it("fails on unknown commands", () => {
+        // 'analyze' is the default command, so an unrecognized word is now
+        // reported as an invalid argument of that command (still a hard,
+        // clear failure with exit code 1).
         const result = runCli(repo.dir, ["frobnicate"]);
         assert.equal(result.status, 1);
-        assert.match(result.stderr, /unknown command/);
+        assert.match(result.stderr, /error: too many arguments for 'analyze'/);
+        assert.match(result.stderr, /frobnicate/);
     });
 });

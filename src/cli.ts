@@ -180,8 +180,8 @@ program
     .version("1.0.0");
 
 program
-    .command("analyze")
-    .description("Analyze current repository changes")
+    .command("analyze", { isDefault: true })
+    .description("Analyze current repository changes (default command: running without arguments analyzes HEAD vs the detected base branch)")
     .option("-b, --base <branch>", "Base branch to compare against")
     .option("--risk-weights <json>", "JSON with custom risk factor weights (e.g. {\"callerImpact\":40,\"testGaps\":30})")
     .action(async (options) => {

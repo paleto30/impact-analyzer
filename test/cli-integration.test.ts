@@ -92,6 +92,18 @@ describe("CLI integration", () => {
         // 1 consumer saturates 10% of callerImpact=100 -> 10 pts
         assert.match(result.stdout, /LOW RISK \(score: 10\/100\)/);
     });
+
+    it("runs without the 'analyze' subcommand (npx impact-analyzer)", () => {
+        // §26 of the founding document: the MVP success criterion is
+        // running the bare command and getting the full report.
+        const result = runCli(repo.dir, ["-b", "HEAD~1"]);
+        assert.equal(result.status, 0, result.stderr);
+
+        const output = result.stdout;
+        assert.match(output, /Risk Assessment/);
+        assert.match(output, /MEDIUM RISK \(score: 28\/100\)/);
+        assert.match(output, /Files in blast radius/);
+    });
 });
 
 describe("CLI integration without a root tsconfig.json", () => {

@@ -33,10 +33,11 @@ To do so it combines:
 
 ```bash
 # At the root of the project to analyze:
-impact-analyzer analyze
+impact-analyzer
 
+# 'analyze' is the default command: both forms are equivalent.
 # In development (from the tool's repo):
-npm run dev -- analyze
+npm run dev
 ```
 
 ### Options
@@ -75,10 +76,10 @@ npm run dev -- analyze
 
 ```bash
 # Same project risk, but emphasizing test coverage:
-impact-analyzer analyze --risk-weights '{"callerImpact":30,"affectedFiles":10,"dependencyDepth":10,"testGaps":35,"changeSize":15}'
+impact-analyzer --risk-weights '{"callerImpact":30,"affectedFiles":10,"dependencyDepth":10,"testGaps":35,"changeSize":15}'
 
 # Only consumers matter (all other factors default to 0):
-impact-analyzer analyze --risk-weights '{"callerImpact":100}'
+impact-analyzer --risk-weights '{"callerImpact":100}'
 ```
 
 ### What it compares
