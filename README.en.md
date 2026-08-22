@@ -31,7 +31,7 @@ Options:
 ## What it does
 
 1. **Git**: detects the repository, the base branch and changed files (A/M/D).
-2. **AST**: with ts-morph (a single indexed project using your tsconfig) extracts exports and imports of changed files.
+2. **AST**: ts-morph extracts exports and imports of changed files, using a single project indexed with your `tsconfig.json`. If the repo has no root tsconfig (common in monorepos), it falls back to an explicit scan of `src/**/*.ts`.
 3. **Modified symbols**: intersects each exported symbol's line range with the diff lines.
 4. **Real consumers**: `findReferences` finds the active usages of each symbol (pure imports don't count as impact).
 5. **Dependency graph**: reverse and forward indexes of relative imports + transitive traversal (BFS) with depth.
@@ -56,7 +56,7 @@ The factor names are the JSON keys of `--risk-weights` (all optional).
 
 ## Report
 
-The report includes: Git context, risk with score and reasons (with points), **Impact Coverage** (affected areas covered by tests — pure type-contract files don't count —, with uncovered ones listed), and per file: exported symbols (marking the modified ones), downstream usages with line and snippet, blast radius (direct/transitive/depth) and related tests (✓/✗).
+The report includes: Git context, risk with score and reasons (with points), **Impact Coverage** (affected areas covered by tests — pure type-contract files don't count —, with uncovered ones listed), and per file: exported symbols (marking the modified ones with ✏️, their modified line counts and, in classes, the concrete modified public methods), downstream usages with line and snippet, blast radius with explicit direction (`imported by ↓`: files that import the modified one) and related tests (✓/✗).
 
 ## Development
 

@@ -31,7 +31,7 @@ Opciones:
 ## Qué hace
 
 1. **Git**: detecta el repo, la rama base y los archivos modificados (A/M/D).
-2. **AST**: con ts-morph (un único proyecto indexado con tu tsconfig) extrae exports e imports de los archivos cambiados.
+2. **AST**: con ts-morph extrae exports e imports de los archivos cambiados, usando un único proyecto indexado con tu `tsconfig.json`. Si el repo no tiene tsconfig en la raíz (típico en monorepos), hace *fallback* al escaneo explícito de `src/**/*.ts`.
 3. **Símbolos modificados**: intersecta los rangos de líneas de cada símbolo exportado con las líneas del diff.
 4. **Consumidores reales**: `findReferences` encuentra los usos activos de cada símbolo (los imports puros no cuentan como impacto).
 5. **Grafo de dependencias**: índice inverso y directo de imports relativos + recorrido transitivo (BFS) con profundidad.
@@ -56,7 +56,7 @@ Los nombres de los factores son las claves JSON de `--risk-weights` (todas opcio
 
 ## Reporte
 
-El reporte incluye: contexto git, riesgo con score y razones (con puntos), **Impact Coverage** (áreas afectadas cubiertas por tests — los archivos de solo contratos de tipos no cuentan —, con las descubiertas listadas), y por cada archivo: símbolos exportados (marcando los modificados), usos downstream con línea y snippet, blast radius (directo/transitivo/profundidad) y tests relacionados (✓/✗).
+El reporte incluye: contexto git, riesgo con score y razones (con puntos), **Impact Coverage** (áreas afectadas cubiertas por tests — los archivos de solo contratos de tipos no cuentan —, con las descubiertas listadas), y por cada archivo: símbolos exportados (marcando los modificados con ✏️, su conteo de líneas modificadas y, en clases, los métodos públicos concretos modificados), usos downstream con línea y snippet, blast radius con dirección explícita (`imported by ↓`: archivos que importan al modificado) y tests relacionados (✓/✗).
 
 ## Desarrollo
 
