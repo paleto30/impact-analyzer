@@ -17,7 +17,7 @@ export interface GitRepoFixture {
  * given files (or a README placeholder when empty).
  */
 export function createGitRepo(files: Record<string, string> = {}): GitRepoFixture {
-    const dir = mkdtempSync(path.join(os.tmpdir(), "impact-analyzer-test-"));
+    const dir = mkdtempSync(path.join(os.tmpdir(), "impactwave-test-"));
     git(dir, "init", "-q");
     git(dir, "config", "user.name", "Test");
     git(dir, "config", "user.email", "test@example.com");

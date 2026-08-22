@@ -19,7 +19,7 @@ function boxStart(color: string): void {
 
 function boxHeader(): void {
     boxStart(colors.cyan);
-    console.log(`${colors.cyan}│${colors.reset} ${colors.bold}🔍 IMPACT ANALYZER — BLAST RADIUS REPORT${colors.reset}`);
+    console.log(`${colors.cyan}│${colors.reset} ${colors.bold}🌊 IMPACTWAVE — BLAST RADIUS REPORT${colors.reset}`);
     boxFooter(colors.cyan);
 }
 

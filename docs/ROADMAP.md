@@ -10,7 +10,7 @@ Ninguna está implementada todavía; son candidatas para la siguiente iteración
 El reporte es hoy 100% consola (human-readable) y el exit code es siempre 0
 salvo errores de uso. Para consumo por herramientas/CI hace falta:
 
-- `impact-analyzer --json`: emitir el reporte (contexto git, risk
+- `impactwave --json`: emitir el reporte (contexto git, risk
   score con razones, impact coverage, ítems por archivo con consumers y
   blast radius) como JSON a stdout.
 - Exit code condicional (`--fail-on HIGH|CRITICAL`): el proceso termina con
@@ -32,7 +32,7 @@ máquinas que leen, `check` es para pipelines que deciden.
 
 **Estado: propuesto.**
 
-Generar un `.impact-analyzerrc` con la configuración del proyecto:
+Generar un `.impactwaverc` con la configuración del proyecto:
 
 - pesos de `--risk-weights` (hoy solo por flag)
 - rama base por defecto

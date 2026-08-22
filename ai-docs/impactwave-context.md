@@ -1,8 +1,8 @@
-# Impact Analyzer
+# ImpactWave
 
 ## 1. Propósito del documento
 
-Este documento define la idea, el problema, el alcance inicial, la arquitectura conceptual y la hoja de ruta de desarrollo de **Impact Analyzer**.
+Este documento define la idea, el problema, el alcance inicial, la arquitectura conceptual y la hoja de ruta de desarrollo de **ImpactWave**.
 
 El documento está pensado para servir como **contexto técnico para una IA de desarrollo de software**. La IA que reciba este documento debe comprender qué problema se pretende resolver, qué debe construir, qué decisiones deben respetarse y qué funcionalidades deben dejarse para fases posteriores.
 
@@ -10,7 +10,7 @@ El documento está pensado para servir como **contexto técnico para una IA de d
 
 # 2. Resumen del proyecto
 
-**Impact Analyzer** será una herramienta orientada a desarrolladores que analiza los cambios realizados en un repositorio Git y determina qué partes del sistema podrían verse afectadas por dichos cambios.
+**ImpactWave** será una herramienta orientada a desarrolladores que analiza los cambios realizados en un repositorio Git y determina qué partes del sistema podrían verse afectadas por dichos cambios.
 
 La pregunta central que debe responder es:
 
@@ -40,7 +40,7 @@ Si el desarrollador modifica:
 PaymentService.calculate()
 ```
 
-Impact Analyzer debería poder identificar que existen múltiples componentes que dependen directa o indirectamente de esa función.
+ImpactWave debería poder identificar que existen múltiples componentes que dependen directa o indirectamente de esa función.
 
 Además, debería relacionar dichos componentes con las pruebas automatizadas existentes y generar una evaluación de riesgo.
 
@@ -76,13 +76,13 @@ Sin embargo, Git no responde preguntas importantes para el desarrollador:
 - ¿Qué tan riesgoso es este cambio?
 - ¿Qué debería probar antes de hacer merge?
 
-El objetivo de Impact Analyzer es convertir un cambio de código en un **mapa de impacto técnico accionable**.
+El objetivo de ImpactWave es convertir un cambio de código en un **mapa de impacto técnico accionable**.
 
 ---
 
 # 4. Propuesta de valor
 
-Impact Analyzer no pretende reemplazar Git, un linter, un sistema de testing, un SAST ni una plataforma completa de observabilidad.
+ImpactWave no pretende reemplazar Git, un linter, un sistema de testing, un SAST ni una plataforma completa de observabilidad.
 
 Su propósito específico es:
 
@@ -155,13 +155,13 @@ La primera versión será una herramienta CLI.
 Ejemplo:
 
 ```bash
-npx impact-analyzer
+npx impactwave
 ```
 
 También puede evolucionar posteriormente hacia:
 
 ```bash
-impact analyze
+wave analyze
 ```
 
 La CLI debe funcionar sobre un repositorio Git existente.
@@ -170,7 +170,7 @@ Ejemplo:
 
 ```bash
 cd my-project
-npx impact-analyzer
+npx impactwave
 ```
 
 La herramienta debería detectar automáticamente:
@@ -196,7 +196,7 @@ Conceptualmente:
                            │
                            ▼
                 ┌─────────────────────┐
-                │  Impact Analyzer    │
+                │     ImpactWave      │
                 │       Engine        │
                 └──────────┬──────────┘
                            │
@@ -234,7 +234,7 @@ La arquitectura debe permitir que posteriormente el mismo motor pueda ser utiliz
 Una estructura inicial razonable:
 
 ```text
-impact-analyzer/
+impactwave/
 │
 ├── src/
 │   ├── cli/
@@ -740,7 +740,7 @@ El proyecto debe construirse por fases.
 Objetivo:
 
 ```bash
-npx impact-analyzer
+npx impactwave
 ```
 
 Debe detectar:
@@ -840,7 +840,7 @@ Permitir ejecutar el análisis automáticamente en Pull Requests.
 Ejemplo:
 
 ```yaml
-- run: npx impact-analyzer
+- run: npx impactwave
 ```
 
 Posteriormente se puede publicar un comentario en el PR.
@@ -882,7 +882,7 @@ Posteriormente:
 ```text
 VS Code
     ↓
-Impact Analyzer Engine
+ImpactWave Engine
     ↓
 Visual impact graph
 ```
@@ -1039,7 +1039,7 @@ La visión a largo plazo puede ser:
                     └────────┬─────────┘
                              │
                     ┌────────▼─────────┐
-                    │ Impact Analyzer  │
+                    │    ImpactWave    │
                     │      Engine      │
                     └────────┬─────────┘
                              │
@@ -1089,7 +1089,7 @@ Se modifica:
 PaymentService.calculate()
 ```
 
-Impact Analyzer obtiene:
+ImpactWave obtiene:
 
 ```text
 Changed symbol:
@@ -1147,7 +1147,7 @@ El MVP no se considera exitoso porque tenga muchas funcionalidades.
 Se considera exitoso si un desarrollador puede ejecutar:
 
 ```bash
-npx impact-analyzer
+npx impactwave
 ```
 
 y obtener información que normalmente tendría que descubrir manualmente leyendo el proyecto.
@@ -1184,7 +1184,7 @@ Requisitos:
 Ejemplo:
 
 ```text
-$ impact analyze
+$ wave analyze
 
 Base branch: main
 Current branch: feature/payment-refactor
@@ -1283,7 +1283,7 @@ D
 
 # 30. Filosofía del proyecto
 
-Impact Analyzer debe construirse bajo una filosofía sencilla:
+ImpactWave debe construirse bajo una filosofía sencilla:
 
 > **Primero evidencia, después interpretación.**
 
@@ -1307,7 +1307,7 @@ Debe construir un modelo técnico del proyecto y utilizarlo para producir una es
 
 # 31. Visión final
 
-La visión a largo plazo de Impact Analyzer es convertirse en una especie de:
+La visión a largo plazo de ImpactWave es convertirse en una especie de:
 
 > **"Sistema de navegación de impacto para código."**
 
@@ -1360,7 +1360,7 @@ Intentar imaginar qué puede romperse
 a:
 
 ```text
-npx impact-analyzer
+npx impactwave
         ↓
 Impact report
         ↓

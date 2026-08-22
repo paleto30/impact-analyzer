@@ -1,4 +1,4 @@
-# Guía de Impact Analyzer
+# Guía de ImpactWave
 
 > **🌐 [English](GUIDE.en.md) | Español**
 
@@ -8,7 +8,7 @@ Guía para desarrolladores: qué hace la herramienta, cómo usarla y cómo inter
 
 ## 1. ¿Qué es?
 
-**Impact Analyzer** es una CLI que analiza los cambios de código de un repositorio Git y responde la pregunta:
+**ImpactWave** es una CLI que analiza los cambios de código de un repositorio Git y responde la pregunta:
 
 > **"¿Qué puedo romper con este cambio y qué debería probar?"**
 
@@ -33,7 +33,7 @@ Para ello combina:
 
 ```bash
 # En la raíz del proyecto a analizar:
-impact-analyzer
+impactwave
 
 # `analyze` es el comando por defecto: ambas formas son equivalentes.
 # En desarrollo (desde el repo de la herramienta):
@@ -76,10 +76,10 @@ npm run dev
 
 ```bash
 # Mismo riesgo para el proyecto, pero enfatizando la cobertura de tests:
-impact-analyzer --risk-weights '{"callerImpact":30,"affectedFiles":10,"dependencyDepth":10,"testGaps":35,"changeSize":15}'
+impactwave --risk-weights '{"callerImpact":30,"affectedFiles":10,"dependencyDepth":10,"testGaps":35,"changeSize":15}'
 
 # Solo interesan los consumidores (el resto de factores queda en 0):
-impact-analyzer --risk-weights '{"callerImpact":100}'
+impactwave --risk-weights '{"callerImpact":100}'
 ```
 
 ### Qué compara
@@ -98,7 +98,7 @@ Ejemplo real: se modificó `PaymentService.calculate()` (cambio de tasa 0.19 →
 
 ```
 ╭──────────────────────────────────────────────────────────╮
-│ 🔍 IMPACT ANALYZER — BLAST RADIUS REPORT                │
+│ 🌊 IMPACTWAVE — BLAST RADIUS REPORT                     │
 ╰──────────────────────────────────────────────────────────╯
 ```
 **Cabecera** — solo identifica el reporte.

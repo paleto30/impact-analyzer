@@ -175,7 +175,7 @@ function collectChangedLines(changedFileAnalyses: Map<string, ChangedFileAnalysi
 const program = new Command();
 
 program
-    .name("impact-analyzer")
+    .name("impactwave")
     .description("Analyze the impact of your code changes")
     .version("1.0.0");
 

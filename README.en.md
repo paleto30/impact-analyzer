@@ -1,4 +1,4 @@
-# Impact Analyzer
+# ImpactWave
 
 > **English | [Español](README.md)**
 
@@ -11,17 +11,17 @@ CLI tool that analyzes the impact of your code changes before merging.
 ## Installation and usage
 
 ```bash
-npm install -g impact-analyzer   # or: npx impact-analyzer
+npm install -g impactwave   # or: npx impactwave
 ```
 
 Run inside a Git repository:
 
 ```bash
 cd my-project
-impact-analyzer
+impactwave
 ```
 
-> `analyze` is the default command: `impact-analyzer` and `impact-analyzer analyze` are equivalent.
+> `analyze` is the default command: `impactwave` and `impactwave analyze` are equivalent.
 
 Options:
 
@@ -73,7 +73,7 @@ Fixtures in `test/fixtures/` validate the analysis against artificial projects:
 
 ## MVP status
 
-Completed according to the proposal (`ai-docs/impact-analyzer-context.md`):
+Completed according to the proposal (`ai-docs/impactwave-context.md`):
 
 - ✅ Phase 1 — Git analysis
 - ✅ Phase 2 — AST analysis

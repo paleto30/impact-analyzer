@@ -1,4 +1,4 @@
-# Impact Analyzer — Issues to Fix
+# ImpactWave — Issues to Fix
 
 Contexto: CLI de análisis de impacto de cambios de Git (TypeScript + ts-morph).
 Motor: detección de cambios Git → análisis AST → grafo de dependencias → risk

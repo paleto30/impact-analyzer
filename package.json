@@ -1,10 +1,10 @@
 {
-  "name": "impact-analyzer",
+  "name": "impactwave",
   "version": "1.0.0",
   "main": "./dist/cli.js",
   "type": "module",
   "bin": {
-    "impact-analyzer": "./dist/cli.js"
+    "impactwave": "./dist/cli.js"
   },
   "scripts": {
     "build": "tsc",
@@ -23,7 +23,11 @@
     "ast",
     "risk"
   ],
-  "author": "",
+  "author": "paleto30",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/paleto30/impactwave.git"
+  },
   "license": "ISC",
   "description": "Analyze the impact of your code changes: blast radius, downstream consumers, test coverage and risk score before merging.",
   "dependencies": {

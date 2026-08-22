@@ -93,7 +93,7 @@ describe("CLI integration", () => {
         assert.match(result.stdout, /LOW RISK \(score: 10\/100\)/);
     });
 
-    it("runs without the 'analyze' subcommand (npx impact-analyzer)", () => {
+    it("runs without the 'analyze' subcommand (npx impactwave)", () => {
         // §26 of the founding document: the MVP success criterion is
         // running the bare command and getting the full report.
         const result = runCli(repo.dir, ["-b", "HEAD~1"]);

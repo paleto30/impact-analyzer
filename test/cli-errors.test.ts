@@ -33,7 +33,7 @@ describe("CLI error handling", () => {
         writeFileSync(path.join(repo.dir, "extra.ts"), "export const y = 2;\n");
         git(repo.dir, "add", "-A");
         git(repo.dir, "commit", "-q", "-m", "second");
-        nonRepo = mkdtempSync(path.join(os.tmpdir(), "impact-analyzer-nonrepo-"));
+        nonRepo = mkdtempSync(path.join(os.tmpdir(), "impactwave-nonrepo-"));
     });
 
     after(() => {

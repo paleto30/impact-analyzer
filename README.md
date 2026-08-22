@@ -1,4 +1,4 @@
-# Impact Analyzer
+# ImpactWave
 
 > **🌐 [English](README.en.md) | Español**
 
@@ -11,17 +11,17 @@ Herramienta CLI que analiza el impacto de tus cambios de código antes de hacer 
 ## Instalación y uso
 
 ```bash
-npm install -g impact-analyzer   # o: npx impact-analyzer
+npm install -g impactwave   # o: npx impactwave
 ```
 
 Ejecutar dentro de un repositorio Git:
 
 ```bash
 cd my-project
-impact-analyzer
+impactwave
 ```
 
-> `analyze` es el comando por defecto: `impact-analyzer` y `impact-analyzer analyze` son equivalentes.
+> `analyze` es el comando por defecto: `impactwave` y `impactwave analyze` son equivalentes.
 
 Opciones:
 
@@ -73,7 +73,7 @@ Los fixtures en `test/fixtures/` validan el análisis contra proyectos artificia
 
 ## Estado del MVP
 
-Completado según la propuesta (`ai-docs/impact-analyzer-context.md`):
+Completado según la propuesta (`ai-docs/impactwave-context.md`):
 
 - ✅ Fase 1 — Git analysis
 - ✅ Fase 2 — AST analysis
