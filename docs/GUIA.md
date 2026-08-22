@@ -151,9 +151,16 @@ Ejemplo real: se modificó `PaymentService.calculate()` (cambio de tasa 0.19 →
 
 ```
     ├─ Exported symbols
-    │    └─ ✏️  PaymentService (class, 1 methods) (modified)
+    │    └─ ✏️  PaymentService (class, 1 methods) (2 lines modified) (calculate method modified)
+    │    └─ Invoice (interface)
 ```
-**Símbolos exportados** — lo que el archivo expone al resto del proyecto. El marcador **✏️ (modified)** indica que ese símbolo concreto fue tocado por el diff (no todo el archivo: solo las declaraciones cuyas líneas cambiaron).
+**Símbolos exportados** — lo que el archivo expone al resto del proyecto. Para cada símbolo tocado por el diff:
+
+- **✏️** — el símbolo fue tocado por el diff (no todo el archivo: solo las declaraciones cuyas líneas cambiaron).
+- **`(N lines modified)`** — cuántas líneas del diff caen dentro de la declaración de ese símbolo.
+- **`(metodo method(s) modified)`** — en clases, los métodos **públicos concretos** cuyas líneas fueron modificadas. Los métodos privados/protegidos no se listan: no forman parte de la superficie que pueden consumir otros archivos.
+
+Los símbolos sin ✏️ existen en el archivo pero no fueron tocados por este cambio.
 
 ```
     ├─ Detailed Downstream Usages
