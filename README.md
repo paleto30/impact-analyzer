@@ -132,6 +132,8 @@ Los nombres de los factores son las claves JSON de `--risk-weights` (todas opcio
 
 Cada análisis imprime contexto Git, evaluación de riesgo con score y razones, cobertura de impacto, y por cada archivo cambiado: símbolos exportados (marcando los modificados), usos downstream con línea y snippet, blast radius en cascada y tests relacionados:
 
+![Reporte de ejemplo de ImpactWave](https://raw.githubusercontent.com/paleto30/impactwave/master/docs/img-example.png)
+
 ```
 ╭─ Risk Assessment ────────────────────────────────────────╮
 │ 🟡 MEDIUM RISK (score: 31/100)                           │

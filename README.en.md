@@ -132,6 +132,8 @@ The factor names are the JSON keys of `--risk-weights` (all optional; omitted on
 
 Every analysis prints Git context, a risk assessment with score and reasons, impact coverage, and per changed file: exported symbols (marking modified ones), downstream usages with line and snippet, cascade blast radius and related tests:
 
+![ImpactWave example report](https://raw.githubusercontent.com/paleto30/impactwave/master/docs/img-example.png)
+
 ```
 ╭─ Risk Assessment ────────────────────────────────────────╮
 │ 🟡 MEDIUM RISK (score: 31/100)                           │
